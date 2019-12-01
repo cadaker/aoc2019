@@ -5,9 +5,9 @@ fn fuel(mass: u64) -> u64 {
     max(mass / 3, 2) - 2
 }
 
-fn total_fuel(module_fuel: u64) -> u64 {
-    let mut total = module_fuel;
-    let mut extra_fuel = fuel(total);
+fn total_fuel(mass: u64) -> u64 {
+    let mut total = 0u64;
+    let mut extra_fuel = fuel(mass);
     while extra_fuel > 0 {
         total += extra_fuel;
         extra_fuel = fuel(extra_fuel);
@@ -27,12 +27,11 @@ mod tests {
 
     #[test]
     fn total_fuel_tests() {
-        assert_eq!(crate::total_fuel(crate::fuel(12)), 2);
-        assert_eq!(crate::total_fuel(crate::fuel(1969)), 966);
-        assert_eq!(crate::total_fuel(crate::fuel(100756)), 50346);
+        assert_eq!(crate::total_fuel(12), 2);
+        assert_eq!(crate::total_fuel(1969), 966);
+        assert_eq!(crate::total_fuel(100756), 50346);
     }
 }
-
 
 fn main() {
     let stdin = io::stdin();
@@ -41,14 +40,9 @@ fn main() {
         .lines()
         .map(|s| s.unwrap().parse::<u64>().unwrap())
         .collect();
-    let module_fuel: u64 = module_masses
-        .iter()
-        .map(|&mass| fuel(mass))
-        .sum();
+
+    let module_fuel: u64 = module_masses.iter().map(|&mass| fuel(mass)).sum();
     println!("{}", module_fuel);
-    let total: u64 = module_masses
-        .iter()
-        .map(|&m| { total_fuel(fuel(m)) })
-        .sum();
+    let total: u64 = module_masses.iter().map(|&m| total_fuel(m)).sum();
     println!("{}", total);
 }
