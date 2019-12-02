@@ -71,5 +71,14 @@ fn main() {
         .map(|s| { s.parse().expect("parse failure") })
         .collect();
 
-    println!("{}", simulate_input(&memory, 12, 02))
+    println!("{}", simulate_input(&memory, 12, 02));
+    const TARGET: usize = 19690720;
+    for noun in 0usize.. {
+        for verb in 0usize..=noun {
+            if simulate_input(&memory, noun, verb) == TARGET {
+                println!("{}", 100*noun + verb);
+                return
+            }
+        }
+    }
 }
