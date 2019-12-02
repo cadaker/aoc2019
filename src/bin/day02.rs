@@ -41,21 +41,11 @@ impl Simulator {
     }
 }
 
-fn main() {
-    let stdin = io::stdin();
-    let mut handle = stdin.lock();
-    let mut buf = String::new();
-    handle.read_to_string(&mut buf).expect("read failure");
+fn simulate_input(mem: &Vec<usize>, noun: usize, verb: usize) -> usize {
+    let mut sim = Simulator::new(mem.clone());
+    sim.memory[1] = noun;
+    sim.memory[2] = verb;
 
-    let mut memory: Vec<usize> = buf
-        .trim()
-        .split(",")
-        .map(|s| { s.parse().expect("parse failure") })
-        .collect();
-
-    memory[1] = 12;
-    memory[2] = 02;
-    let mut sim = Simulator::new(memory);
     let mut pc = 0usize;
     loop {
         match sim.execute_one(pc).expect("invalid opcode") {
@@ -63,9 +53,23 @@ fn main() {
                 pc = next_pc
             },
             State::Stopped(mem0) => {
-                println!("{}", mem0);
-                break
+                break mem0
             }
         }
     }
+}
+
+fn main() {
+    let stdin = io::stdin();
+    let mut handle = stdin.lock();
+    let mut buf = String::new();
+    handle.read_to_string(&mut buf).expect("read failure");
+
+    let memory: Vec<usize> = buf
+        .trim()
+        .split(",")
+        .map(|s| { s.parse().expect("parse failure") })
+        .collect();
+
+    println!("{}", simulate_input(&memory, 12, 02))
 }
