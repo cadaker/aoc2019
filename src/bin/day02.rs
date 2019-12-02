@@ -1,26 +1,29 @@
 use std::io::{self, Read};
 
+type Mem = usize;
+type IP = usize;
+
 enum State {
-    Running(usize),
-    Stopped(usize),
+    Running(IP),
+    Stopped(Mem),
 }
 
 struct Simulator {
-    memory: Vec<usize>,
+    memory: Vec<Mem>,
 }
 
-const ADD: usize = 1;
-const MUL: usize = 2;
-const END: usize = 99;
+const ADD: Mem = 1;
+const MUL: Mem = 2;
+const END: Mem = 99;
 
 impl Simulator {
-    fn new(mem: Vec<usize>) -> Self {
+    fn new(mem: Vec<Mem>) -> Self {
         Simulator{memory: mem}
     }
 
-    fn execute_one(&mut self, pc: usize) -> Result<State, (usize, usize)> {
-        fn get_ops(mem: &Vec<usize>, pc: usize) -> (usize, usize, usize) {
-            (mem[pc+1 as usize], mem[pc+2 as usize], mem[pc+3 as usize])
+    fn execute_one(&mut self, pc: IP) -> Result<State, (IP, Mem)> {
+        fn get_ops(mem: &Vec<Mem>, pc: IP) -> (Mem, Mem, Mem) {
+            (mem[pc+1], mem[pc+2], mem[pc+3])
         }
         match self.memory[pc] {
             ADD => {
@@ -41,12 +44,12 @@ impl Simulator {
     }
 }
 
-fn simulate_input(mem: &Vec<usize>, noun: usize, verb: usize) -> usize {
+fn simulate_input(mem: &Vec<Mem>, noun: Mem, verb: Mem) -> Mem {
     let mut sim = Simulator::new(mem.clone());
     sim.memory[1] = noun;
     sim.memory[2] = verb;
 
-    let mut pc = 0usize;
+    let mut pc: IP = 0;
     loop {
         match sim.execute_one(pc).expect("invalid opcode") {
             State::Running(next_pc) => {
@@ -65,14 +68,14 @@ fn main() {
     let mut buf = String::new();
     handle.read_to_string(&mut buf).expect("read failure");
 
-    let memory: Vec<usize> = buf
+    let memory: Vec<Mem> = buf
         .trim()
         .split(",")
         .map(|s| { s.parse().expect("parse failure") })
         .collect();
 
     println!("{}", simulate_input(&memory, 12, 02));
-    const TARGET: usize = 19690720;
+    const TARGET: Mem = 19690720;
     for noun in 0usize.. {
         for verb in 0usize..=noun {
             if simulate_input(&memory, noun, verb) == TARGET {
