@@ -63,6 +63,15 @@ fn main() {
     let points0 = trace_path(&path0);
     let points1 = trace_path(&path1);
 
-    let (xmin, ymin) = points0.intersection(&points1).min_by_key(|p| { mh_norm(*p) }).unwrap();
-    println!("{}", mh_norm(&(*xmin, *ymin)))
+    let intersection_points: Vec<Point> =
+        points0.intersection(&points1)
+            .cloned()
+            .collect();
+    let mindist = intersection_points
+        .iter()
+        .cloned()
+        .map(|p| mh_norm(&p))
+        .min()
+        .unwrap();
+    println!("{}", mindist)
 }
