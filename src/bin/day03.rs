@@ -28,11 +28,12 @@ fn parse_entry(s: &str) -> Step {
 
 type Point = (i32, i32);
 
-fn trace(points: &mut std::collections::HashSet<Point>, x: &mut i32, y: &mut i32, dx: i32, dy: i32, n: i32) {
-    for _ in 0..n {
-        *x += dx;
-        *y += dy;
-        points.insert((*x,*y));
+fn step_movement(step: &Step) -> (i32, i32, i32) {
+    match *step {
+        Step::Left(n)  => (-1, 0, n),
+        Step::Right(n) => (1, 0, n),
+        Step::Up(n)    => (0, 1, n),
+        Step::Down(n)  => (0, -1, n),
     }
 }
 
@@ -40,13 +41,13 @@ fn trace_path(steps: &[Step]) -> std::collections::HashSet<Point> {
     let mut x: i32 = 0;
     let mut y: i32 = 0;
     let mut points = std::collections::HashSet::<Point>::new();
-    for step in steps.iter() {
-        match step {
-            Step::Left(n)  => trace(&mut points, &mut x, &mut y, -1, 0, *n),
-            Step::Right(n) => trace(&mut points, &mut x, &mut y, 1, 0, *n),
-            Step::Up(n)    => trace(&mut points, &mut x, &mut y, 0, 1, *n),
-            Step::Down(n)  => trace(&mut points, &mut x, &mut y, 0, -1, *n),
-        };
+    for step in steps {
+        let (dx, dy, n) = step_movement(step);
+        for _ in 0..n {
+            x += dx;
+            y += dy;
+            points.insert((x,y));
+        }
     }
     points
 }
@@ -60,15 +61,10 @@ fn distance_to(steps: &[Step], destination: Point) -> Option<i32> {
     let mut x: i32 = 0;
     let mut y: i32 = 0;
     for step in steps {
-        let (dx,dy,n) = match *step {
-            Step::Left(n) => (-1, 0, n),
-            Step::Right(n) => (1, 0, n),
-            Step::Up(n) => (0, 1, n),
-            Step::Down(n) => (0, -1, n),
-        };
         if (x,y) == destination {
             return Some(dist);
         }
+        let (dx,dy,n) = step_movement(step);
         for _ in 0..n {
             x += dx;
             y += dy;
