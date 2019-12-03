@@ -55,6 +55,38 @@ fn mh_norm(p: &Point) -> i32 {
     p.0.abs() + p.1.abs()
 }
 
+fn distance_to(steps: &[Step], destination: Point) -> Option<i32> {
+    let mut dist: i32 = 0;
+    let mut x: i32 = 0;
+    let mut y: i32 = 0;
+    for step in steps {
+        let (dx,dy,n) = match *step {
+            Step::Left(n) => (-1, 0, n),
+            Step::Right(n) => (1, 0, n),
+            Step::Up(n) => (0, 1, n),
+            Step::Down(n) => (0, -1, n),
+        };
+        if (x,y) == destination {
+            return Some(dist);
+        }
+        for _ in 0..n {
+            x += dx;
+            y += dy;
+            dist += 1;
+            if (x,y) == destination {
+                return Some(dist);
+            }
+        }
+    }
+    None
+}
+
+fn combined_distance(steps0: &[Step], steps1: &[Step], destination: Point) -> i32 {
+    let dist0 = distance_to(steps0, destination).unwrap();
+    let dist1 = distance_to(steps1, destination).unwrap();
+    dist0 + dist1
+}
+
 fn main() {
     let lines: Vec<String> = slurp_stdin().split("\n").map(|s| { s.to_string() }).collect();
     let path0: Vec<Step> = lines[0].split(",").map(|s| { parse_entry(s) }).collect();
@@ -67,11 +99,19 @@ fn main() {
         points0.intersection(&points1)
             .cloned()
             .collect();
-    let mindist = intersection_points
+    let minnorm = intersection_points
         .iter()
         .cloned()
         .map(|p| mh_norm(&p))
         .min()
         .unwrap();
-    println!("{}", mindist)
+    println!("{}", minnorm);
+
+    let mindist = intersection_points
+        .iter()
+        .cloned()
+        .map(|p| combined_distance(&path0, &path1, p))
+        .min()
+        .unwrap();
+    println!("{}", mindist);
 }
