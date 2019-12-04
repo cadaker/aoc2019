@@ -8,6 +8,7 @@ fn slurp_stdin() -> String {
     buf
 }
 
+#[derive(Clone, Copy)]
 enum Step {
     Right(i32),
     Left(i32),
@@ -37,19 +38,40 @@ fn step_movement(step: &Step) -> (i32, i32, i32) {
     }
 }
 
-fn trace_path(steps: &[Step]) -> std::collections::HashSet<Point> {
-    let mut x: i32 = 0;
-    let mut y: i32 = 0;
-    let mut points = std::collections::HashSet::<Point>::new();
-    for step in steps {
-        let (dx, dy, n) = step_movement(step);
-        for _ in 0..n {
-            x += dx;
-            y += dy;
-            points.insert((x,y));
+struct PathIterator<I> where I: Iterator<Item=Step> {
+    x: i32,
+    y: i32,
+    dx: i32,
+    dy: i32,
+    n: i32,
+    step_iter: I
+}
+
+fn path_iter<I>(step_iter: I) -> PathIterator<I> where I: Iterator<Item=Step> {
+    PathIterator::<I> { x: 0, y: 0, dx: 0, dy: 0, n: 0, step_iter }
+}
+
+impl<I> Iterator for PathIterator<I> where I: Iterator<Item=Step> {
+    type Item = Point;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.n <= 0 {
+            match self.step_iter.next() {
+                Some(s) => {
+                    let (dx, dy, n) = step_movement(&s.into());
+                    self.dx = dx;
+                    self.dy = dy;
+                    self.n = n;
+                },
+                None => return None
+            }
         }
+
+        self.x += self.dx;
+        self.y += self.dy;
+        self.n -= 1;
+        Some((self.x,self.y))
     }
-    points
 }
 
 fn mh_norm(p: &Point) -> i32 {
@@ -88,8 +110,8 @@ fn main() {
     let path0: Vec<Step> = lines[0].split(",").map(|s| { parse_entry(s) }).collect();
     let path1: Vec<Step> = lines[1].split(",").map(|s| { parse_entry(s) }).collect();
 
-    let points0 = trace_path(&path0);
-    let points1 = trace_path(&path1);
+    let points0: std::collections::HashSet<Point> = path_iter(path0.iter().cloned()).collect();
+    let points1: std::collections::HashSet<Point> = path_iter(path1.iter().cloned()).collect();
 
     let intersection_points: Vec<Point> =
         points0.intersection(&points1)
@@ -97,7 +119,6 @@ fn main() {
             .collect();
     let minnorm = intersection_points
         .iter()
-        .cloned()
         .map(|p| mh_norm(&p))
         .min()
         .unwrap();
