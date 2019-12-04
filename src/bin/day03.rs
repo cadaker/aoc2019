@@ -79,24 +79,15 @@ fn mh_norm(p: &Point) -> i32 {
 }
 
 fn distance_to(steps: &[Step], destination: Point) -> Option<i32> {
-    let mut dist: i32 = 0;
-    let mut x: i32 = 0;
-    let mut y: i32 = 0;
-    for step in steps {
-        if (x,y) == destination {
-            return Some(dist);
-        }
-        let (dx,dy,n) = step_movement(step);
-        for _ in 0..n {
-            x += dx;
-            y += dy;
-            dist += 1;
-            if (x,y) == destination {
-                return Some(dist);
+    path_iter(steps.iter().cloned())
+        .zip(1i32..)
+        .find_map(|(p, index)| {
+            if p == destination {
+                Some(index)
+            } else {
+                None
             }
-        }
-    }
-    None
+        })
 }
 
 fn combined_distance(steps0: &[Step], steps1: &[Step], destination: Point) -> i32 {
@@ -113,10 +104,9 @@ fn main() {
     let points0: std::collections::HashSet<Point> = path_iter(path0.iter().cloned()).collect();
     let points1: std::collections::HashSet<Point> = path_iter(path1.iter().cloned()).collect();
 
-    let intersection_points: Vec<Point> =
-        points0.intersection(&points1)
-            .cloned()
-            .collect();
+    let intersection_points: Vec<Point> = points0.intersection(&points1)
+        .cloned()
+        .collect();
     let minnorm = intersection_points
         .iter()
         .map(|p| mh_norm(&p))
