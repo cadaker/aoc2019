@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 const START: i32 = 245182;
 const END: i32 = 790572;
 
@@ -45,14 +47,32 @@ fn has_double(digits: &[i32]) -> bool {
     false
 }
 
+fn has_exact_double(digits: &[i32]) -> bool {
+    let mut counts: HashMap<i32, i32> = HashMap::new();
+    for &d in digits {
+        *counts.entry(d).or_insert(0) += 1
+    }
+    for &v in counts.values() {
+        if v == 2 {
+            return true;
+        }
+    }
+    false
+}
+
 fn main() {
     let mut count = 0i32;
+    let mut count_exact = 0i32;
     for n in START..=END {
         let ds = digits(n);
         if is_increasing(&ds) && has_double(&ds) {
-            count += 1
+            count += 1;
+            if has_exact_double(&ds) {
+                count_exact += 1;
+            }
         }
     }
 
     println!("{}", count);
+    println!("{}", count_exact);
 }
