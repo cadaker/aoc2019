@@ -5,6 +5,34 @@ pub struct Memory {
     memory: Vec<Mem>
 }
 
+impl Memory {
+    fn read(&self, ptr: Ptr) -> Result<Mem, String> {
+        self.memory.get(ptr).cloned().ok_or(String::from("read outside of memory"))
+    }
+
+    fn write(&mut self, ptr: Ptr, val: Mem) -> Result<(), String> {
+        *self.memory
+            .get_mut(ptr)
+            .ok_or(String::from("write outside of memory"))?
+            = val;
+        Ok(())
+    }
+
+    fn read_param(&self, param: &Param) -> Result<Mem, String> {
+        match *param {
+            Param::Pos(ptr) => self.read(ptr),
+            Param::Imm(val) => Ok(val),
+        }
+    }
+
+    fn write_param(&mut self, param: &Param, value: Mem) -> Result<(), String> {
+        match *param {
+            Param::Pos(ptr) => self.write(ptr, value),
+            Param::Imm(_) => Err(String::from("writing to immediate")),
+        }
+    }
+}
+
 #[derive(Debug,PartialEq)]
 enum Param {
     Pos(Ptr),
@@ -125,82 +153,63 @@ mod tests {
 
 ////////////////////////////////////////////////////////////////
 
-fn eval_param(p: &Param, m: &Memory) -> Mem {
-    match *p {
-        Param::Pos(ptr) => m.memory[ptr],
-        Param::Imm(val) => val,
-    }
-}
-
-fn write_param(val: Mem, p: &Param, m: &mut Memory) -> Result<(), String> {
-    match *p {
-        Param::Pos(ptr) => {
-            m.memory[ptr] = val;
-            Ok(())
-        },
-        Param::Imm(_) => Err(String::from("tried to write to immediate")),
-    }
-}
-
 pub fn run_program(
     memdata: Vec<Mem>,
     input: &mut dyn Input,
     output: &mut dyn Output) -> Result<Vec<Mem>, String>
 {
-    let mut memory = Memory { memory: memdata };
+    let mut mem = Memory { memory: memdata };
     let mut ip: Ptr = 0;
     loop {
-        let op = decode_instr(&memory, ip)?;
+        let op = decode_instr(&mem, ip)?;
         ip = match op {
             Op::Add(lhs, rhs, dest) => {
-                write_param(
-                    eval_param(&lhs, &memory) + eval_param(&rhs, &memory),
+                mem.write_param(
                     &dest,
-                    &mut memory)?;
+                    mem.read_param(&lhs)? + mem.read_param(&rhs)?)?;
                 ip+4
             },
             Op::Mul(lhs, rhs, dest) => {
-                write_param(
-                    eval_param(&lhs, &memory) * eval_param(&rhs, &memory),
+                mem.write_param(
                     &dest,
-                    &mut memory)?;
+                    mem.read_param(&lhs)? * mem.read_param(&rhs)?)?;
                 ip+4
             },
             Op::In(p) => {
-                write_param(input.next_input()?, &p, &mut memory)?;
+                mem.write_param(&p, input.next_input()?)?;
                 ip+2
             },
             Op::Out(p) => {
-                output.next_output(eval_param(&p, &memory));
+                output.next_output(mem.read_param(&p)?);
                 ip+2
             },
             Op::JumpIfTrue(expr, dest) => {
-                if eval_param(&expr, &memory) != 0 {
-                    eval_param(&dest, &memory) as Ptr
+                if mem.read_param(&expr)? != 0 {
+                    mem.read_param(&dest)? as Ptr
                 } else {
                     ip+3
                 }
             },
             Op::JumpIfFalse(expr, dest) => {
-                if eval_param(&expr, &memory) == 0 {
-                    eval_param(&dest, &memory) as Ptr
+                if mem.read_param(&expr)? == 0 {
+                    mem.read_param(&dest)? as Ptr
                 } else {
                     ip+3
                 }
             },
             Op::LessThan(lhs, rhs, dest) => {
-                write_param((eval_param(&lhs, &memory) < eval_param(&rhs, &memory)) as i32,
-                            &dest,
-                            &mut memory)?;
+                mem.write_param(
+                    &dest,
+                    (mem.read_param(&lhs)? < mem.read_param(&rhs)?) as i32)?;
                 ip+4
             },
             Op::Equals(lhs, rhs, dest) => {
-                write_param((eval_param(&lhs, &memory) == eval_param(&rhs, &memory)) as i32,
-                            &dest,
-                            &mut memory)?;
+                mem.write_param(
+                    &dest,
+                    (mem.read_param(&lhs)? == mem.read_param(&rhs)?) as i32)?;
                 ip+4
             },
-            Op::End => return Ok(memory.memory)
+            Op::End => return Ok(mem.memory)
         };
     }
 }
