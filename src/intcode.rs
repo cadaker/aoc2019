@@ -64,43 +64,50 @@ fn decode_param(m: &Memory, ptr: Ptr, opcode: Mem, index: u32) -> Result<Param, 
     }
 }
 
+fn decode_3_params(m: &Memory, ptr: Ptr, opcode: Mem) -> Result<(Param,Param,Param), String> {
+    let p0 = decode_param(m, ptr, opcode, 0)?;
+    let p1 = decode_param(m, ptr+1, opcode, 1)?;
+    let p2 = decode_param(m, ptr+2, opcode, 2)?;
+    Ok((p0,p1,p2))
+}
+
 fn decode_instr(m: &Memory, ip: Ptr) -> Result<Instr, String> {
     match m.memory[ip] % 100 {
         1 => {
-            let p0 = decode_param(m, ip+1, m.memory[ip], 0)?;
-            let p1 = decode_param(m, ip+2, m.memory[ip], 1)?;
-            let p2 = decode_param(m, ip+3, m.memory[ip], 2)?;
+            let (p0, p1, p2) = decode_3_params(m, ip+1, m.memory[ip])?;
             Ok(Instr {op: Op::Add(p0, p1, p2), new_ip: ip+4})
         },
         2 => {
-            let p0 = decode_param(m, ip+1, m.memory[ip], 0)?;
-            let p1 = decode_param(m, ip+2, m.memory[ip], 1)?;
-            let p2 = decode_param(m, ip+3, m.memory[ip], 2)?;
+            let (p0, p1, p2) = decode_3_params(m, ip+1, m.memory[ip])?;
             Ok(Instr {op: Op::Mul(p0, p1, p2), new_ip: ip+4})
         },
         3 => {
             let p = decode_param(m, ip+1, m.memory[ip], 0)?;
             Ok(Instr {op: Op::In(p), new_ip: ip+2})
-        }
+        },
         4 => {
             let p = decode_param(m, ip+1, m.memory[ip], 0)?;
             Ok(Instr {op: Op::Out(p), new_ip: ip+2})
-        }
+        },
         99 => {
             Ok(Instr {op: Op::End, new_ip: ip+1})
-        }
-        _ => Err(String::from("invalid opcode"))
+        },
+        _ => Err(String::from("invalid opcode")),
     }
 }
 
-#[test]
-fn test_decode() {
-    //use crate::intcode::{decode_instr, Memory};
-    assert_eq!(decode_instr(&Memory{ memory: vec![1002,4,3,4,33] }, 0),
-               Ok(Instr {
-                   op: Op::Mul(Param::Pos(4), Param::Imm(3), Param::Pos(4)),
-                   new_ip: 4
-               }));
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_decode() {
+        assert_eq!(decode_instr(&Memory { memory: vec![1002, 4, 3, 4, 33] }, 0),
+                   Ok(Instr {
+                       op: Op::Mul(Param::Pos(4), Param::Imm(3), Param::Pos(4)),
+                       new_ip: 4
+                   }));
+    }
 }
 
 ////////////////////////////////////////////////////////////////
@@ -122,10 +129,10 @@ fn write_param(val: Mem, p: &Param, m: &mut Memory) -> Result<(), String> {
     }
 }
 
- pub fn run_program(
+pub fn run_program(
     memdata: Vec<Mem>,
-    input: &mut Input,
-    output: &mut Output) -> Result<Vec<Mem>, String>
+    input: &mut dyn Input,
+    output: &mut dyn Output) -> Result<Vec<Mem>, String>
 {
     let mut memory = Memory { memory: memdata };
     let mut ip: Ptr = 0;
