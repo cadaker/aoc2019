@@ -18,6 +18,11 @@ fn main() {
     let mut input = vec![1];
     let mut output = Vec::<i32>::new();
 
+    run_program(data.clone(), &mut input, &mut output).unwrap();
+    println!("{}", output.iter().last().unwrap());
+
+    input = vec![5];
+    output = Vec::new();
     run_program(data, &mut input, &mut output).unwrap();
     println!("{}", output.iter().last().unwrap());
 }

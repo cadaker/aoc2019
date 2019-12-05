@@ -17,6 +17,10 @@ enum Op {
     Mul(Param, Param, Param),
     In(Param),
     Out(Param),
+    JumpIfTrue(Param, Param),
+    JumpIfFalse(Param, Param),
+    LessThan(Param, Param, Param),
+    Equals(Param, Param, Param),
     End,
 }
 
@@ -83,6 +87,24 @@ fn decode_instr(m: &Memory, ip: Ptr) -> Result<Op, String> {
             let p = decode_param(m, ip+1, m.memory[ip], 0)?;
             Ok(Op::Out(p))
         },
+        5 => {
+            let expr = decode_param(m, ip+1, m.memory[ip], 0)?;
+            let dest = decode_param(m, ip+2, m.memory[ip], 1)?;
+            Ok(Op::JumpIfTrue(expr, dest))
+        },
+        6 => {
+            let expr = decode_param(m, ip+1, m.memory[ip], 0)?;
+            let dest = decode_param(m, ip+2, m.memory[ip], 1)?;
+            Ok(Op::JumpIfFalse(expr, dest))
+        },
+        7 => {
+            let (p0, p1, p2) = decode_3_params(m, ip+1, m.memory[ip])?;
+            Ok(Op::LessThan(p0, p1, p2))
+        },
+        8 => {
+            let (p0, p1, p2) = decode_3_params(m, ip+1, m.memory[ip])?;
+            Ok(Op::Equals(p0, p1, p2))
+        },
         99 => {
             Ok(Op::End)
         },
@@ -130,17 +152,17 @@ pub fn run_program(
     loop {
         let op = decode_instr(&memory, ip)?;
         ip = match op {
-            Op::Add(p1, p2, p3) => {
+            Op::Add(lhs, rhs, dest) => {
                 write_param(
-                    eval_param(&p1, &memory) + eval_param(&p2, &memory),
-                    &p3,
+                    eval_param(&lhs, &memory) + eval_param(&rhs, &memory),
+                    &dest,
                     &mut memory)?;
                 ip+4
             },
-            Op::Mul(p1, p2, p3) => {
+            Op::Mul(lhs, rhs, dest) => {
                 write_param(
-                    eval_param(&p1, &memory) * eval_param(&p2, &memory),
-                    &p3,
+                    eval_param(&lhs, &memory) * eval_param(&rhs, &memory),
+                    &dest,
                     &mut memory)?;
                 ip+4
             },
@@ -151,6 +173,32 @@ pub fn run_program(
             Op::Out(p) => {
                 output.next_output(eval_param(&p, &memory));
                 ip+2
+            },
+            Op::JumpIfTrue(expr, dest) => {
+                if eval_param(&expr, &memory) != 0 {
+                    eval_param(&dest, &memory) as Ptr
+                } else {
+                    ip+3
+                }
+            },
+            Op::JumpIfFalse(expr, dest) => {
+                if eval_param(&expr, &memory) == 0 {
+                    eval_param(&dest, &memory) as Ptr
+                } else {
+                    ip+3
+                }
+            },
+            Op::LessThan(lhs, rhs, dest) => {
+                write_param((eval_param(&lhs, &memory) < eval_param(&rhs, &memory)) as i32,
+                            &dest,
+                            &mut memory)?;
+                ip+4
+            },
+            Op::Equals(lhs, rhs, dest) => {
+                write_param((eval_param(&lhs, &memory) == eval_param(&rhs, &memory)) as i32,
+                            &dest,
+                            &mut memory)?;
+                ip+4
             },
             Op::End => return Ok(memory.memory)
         };
