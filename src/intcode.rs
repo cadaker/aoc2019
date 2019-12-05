@@ -25,7 +25,7 @@ enum Op {
 }
 
 pub trait Input {
-    fn next_input(&mut self) -> Mem;
+    fn next_input(&mut self) -> Result<Mem, String>;
 }
 
 pub trait Output {
@@ -33,8 +33,8 @@ pub trait Output {
 }
 
 impl Input for Vec<Mem> {
-    fn next_input(&mut self) -> i32 {
-        self.pop().unwrap()
+    fn next_input(&mut self) -> Result<Mem, String> {
+        self.pop().ok_or(String::from("not enough inputs in vector"))
     }
 }
 
@@ -167,7 +167,7 @@ pub fn run_program(
                 ip+4
             },
             Op::In(p) => {
-                write_param(input.next_input(), &p, &mut memory)?;
+                write_param(input.next_input()?, &p, &mut memory)?;
                 ip+2
             },
             Op::Out(p) => {
