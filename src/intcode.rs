@@ -72,18 +72,21 @@ impl Output for Vec<Mem> {
     }
 }
 
-fn decode_param(m: &Memory, ptr: Ptr, opcode: Mem, index: u32) -> Result<Param, String> {
-    let mut c = opcode / 100;
+fn get_flag(opcode: Mem, index: u32) -> i32 {
+    let mut flags = opcode/100;
     for _ in 0..index {
-        c /= 10
+        flags /= 10
     }
-    c %= 10;
+    flags % 10
+}
 
-    let &val = m.memory.get(ptr).ok_or(String::from("end of memory"))?;
+fn decode_param(m: &Memory, ptr: Ptr, opcode: Mem, index: u32) -> Result<Param, String> {
+    let val = m.read(ptr)?;
 
-    if c == 0 {
-        Ok(Param::Pos(val as usize))
-    } else if c == 1 {
+    let flag = get_flag(opcode, index);
+    if flag == 0 {
+        Ok(Param::Pos(val as Ptr))
+    } else if flag == 1 {
         Ok(Param::Imm(val))
     } else {
         Err(String::from("invalid parameter mode"))
@@ -98,39 +101,40 @@ fn decode_3_params(m: &Memory, ptr: Ptr, opcode: Mem) -> Result<(Param,Param,Par
 }
 
 fn decode_instr(m: &Memory, ip: Ptr) -> Result<Op, String> {
-    match m.memory[ip] % 100 {
+    let opcode = m.read(ip)?;
+    match opcode % 100 {
         1 => {
-            let (p0, p1, p2) = decode_3_params(m, ip+1, m.memory[ip])?;
+            let (p0, p1, p2) = decode_3_params(m, ip+1, opcode)?;
             Ok(Op::Add(p0, p1, p2))
         },
         2 => {
-            let (p0, p1, p2) = decode_3_params(m, ip+1, m.memory[ip])?;
+            let (p0, p1, p2) = decode_3_params(m, ip+1, opcode)?;
             Ok(Op::Mul(p0, p1, p2))
         },
         3 => {
-            let p = decode_param(m, ip+1, m.memory[ip], 0)?;
+            let p = decode_param(m, ip+1, opcode, 0)?;
             Ok(Op::In(p))
         },
         4 => {
-            let p = decode_param(m, ip+1, m.memory[ip], 0)?;
+            let p = decode_param(m, ip+1, opcode, 0)?;
             Ok(Op::Out(p))
         },
         5 => {
-            let expr = decode_param(m, ip+1, m.memory[ip], 0)?;
-            let dest = decode_param(m, ip+2, m.memory[ip], 1)?;
+            let expr = decode_param(m, ip+1, opcode, 0)?;
+            let dest = decode_param(m, ip+2, opcode, 1)?;
             Ok(Op::JumpIfTrue(expr, dest))
         },
         6 => {
-            let expr = decode_param(m, ip+1, m.memory[ip], 0)?;
-            let dest = decode_param(m, ip+2, m.memory[ip], 1)?;
+            let expr = decode_param(m, ip+1, opcode, 0)?;
+            let dest = decode_param(m, ip+2, opcode, 1)?;
             Ok(Op::JumpIfFalse(expr, dest))
         },
         7 => {
-            let (p0, p1, p2) = decode_3_params(m, ip+1, m.memory[ip])?;
+            let (p0, p1, p2) = decode_3_params(m, ip+1, opcode)?;
             Ok(Op::LessThan(p0, p1, p2))
         },
         8 => {
-            let (p0, p1, p2) = decode_3_params(m, ip+1, m.memory[ip])?;
+            let (p0, p1, p2) = decode_3_params(m, ip+1, opcode)?;
             Ok(Op::Equals(p0, p1, p2))
         },
         99 => {
