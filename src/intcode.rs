@@ -26,6 +26,26 @@ struct Instr {
     new_ip: Ptr,
 }
 
+pub trait Input {
+    fn next_input(&mut self) -> Mem;
+}
+
+pub trait Output {
+    fn next_output(&mut self, x: Mem);
+}
+
+impl Input for Vec<Mem> {
+    fn next_input(&mut self) -> i32 {
+        self.pop().unwrap()
+    }
+}
+
+impl Output for Vec<Mem> {
+    fn next_output(&mut self, x: i32) {
+        self.push(x)
+    }
+}
+
 fn decode_param(m: &Memory, ptr: Ptr, opcode: Mem, index: u32) -> Result<Param, String> {
     let mut c = opcode / 100;
     for _ in 0..index {
@@ -82,3 +102,57 @@ fn test_decode() {
                    new_ip: 4
                }));
 }
+
+////////////////////////////////////////////////////////////////
+
+fn eval_param(p: &Param, m: &Memory) -> Mem {
+    match *p {
+        Param::Pos(ptr) => m.memory[ptr],
+        Param::Imm(val) => val,
+    }
+}
+
+fn write_param(val: Mem, p: &Param, m: &mut Memory) -> Result<(), String> {
+    match *p {
+        Param::Pos(ptr) => {
+            m.memory[ptr] = val;
+            Ok(())
+        },
+        Param::Imm(_) => Err(String::from("tried to write to immediate")),
+    }
+}
+
+ pub fn run_program(
+    memdata: Vec<Mem>,
+    input: &mut Input,
+    output: &mut Output) -> Result<Vec<Mem>, String>
+{
+    let mut memory = Memory { memory: memdata };
+    let mut ip: Ptr = 0;
+    loop {
+        let instr = decode_instr(&memory, ip)?;
+        match instr.op {
+            Op::Add(p1, p2, p3) => {
+                write_param(
+                    eval_param(&p1, &memory) + eval_param(&p2, &memory),
+                    &p3,
+                    &mut memory)?;
+            },
+            Op::Mul(p1, p2, p3) => {
+                write_param(
+                    eval_param(&p1, &memory) * eval_param(&p2, &memory),
+                    &p3,
+                    &mut memory)?;
+            },
+            Op::In(p) => {
+                write_param(input.next_input(), &p, &mut memory)?;
+            },
+            Op::Out(p) => {
+                output.next_output(eval_param(&p, &memory));
+            },
+            Op::End => return Ok(memory.memory)
+        }
+        ip = instr.new_ip
+    }
+}
+
