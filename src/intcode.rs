@@ -20,12 +20,6 @@ enum Op {
     End,
 }
 
-#[derive(Debug,PartialEq)]
-struct Instr {
-    op: Op,
-    new_ip: Ptr,
-}
-
 pub trait Input {
     fn next_input(&mut self) -> Mem;
 }
@@ -71,26 +65,26 @@ fn decode_3_params(m: &Memory, ptr: Ptr, opcode: Mem) -> Result<(Param,Param,Par
     Ok((p0,p1,p2))
 }
 
-fn decode_instr(m: &Memory, ip: Ptr) -> Result<Instr, String> {
+fn decode_instr(m: &Memory, ip: Ptr) -> Result<Op, String> {
     match m.memory[ip] % 100 {
         1 => {
             let (p0, p1, p2) = decode_3_params(m, ip+1, m.memory[ip])?;
-            Ok(Instr {op: Op::Add(p0, p1, p2), new_ip: ip+4})
+            Ok(Op::Add(p0, p1, p2))
         },
         2 => {
             let (p0, p1, p2) = decode_3_params(m, ip+1, m.memory[ip])?;
-            Ok(Instr {op: Op::Mul(p0, p1, p2), new_ip: ip+4})
+            Ok(Op::Mul(p0, p1, p2))
         },
         3 => {
             let p = decode_param(m, ip+1, m.memory[ip], 0)?;
-            Ok(Instr {op: Op::In(p), new_ip: ip+2})
+            Ok(Op::In(p))
         },
         4 => {
             let p = decode_param(m, ip+1, m.memory[ip], 0)?;
-            Ok(Instr {op: Op::Out(p), new_ip: ip+2})
+            Ok(Op::Out(p))
         },
         99 => {
-            Ok(Instr {op: Op::End, new_ip: ip+1})
+            Ok(Op::End)
         },
         _ => Err(String::from("invalid opcode")),
     }
@@ -103,10 +97,7 @@ mod tests {
     #[test]
     fn test_decode() {
         assert_eq!(decode_instr(&Memory { memory: vec![1002, 4, 3, 4, 33] }, 0),
-                   Ok(Instr {
-                       op: Op::Mul(Param::Pos(4), Param::Imm(3), Param::Pos(4)),
-                       new_ip: 4
-                   }));
+                   Ok(Op::Mul(Param::Pos(4), Param::Imm(3), Param::Pos(4))));
     }
 }
 
@@ -137,29 +128,32 @@ pub fn run_program(
     let mut memory = Memory { memory: memdata };
     let mut ip: Ptr = 0;
     loop {
-        let instr = decode_instr(&memory, ip)?;
-        match instr.op {
+        let op = decode_instr(&memory, ip)?;
+        ip = match op {
             Op::Add(p1, p2, p3) => {
                 write_param(
                     eval_param(&p1, &memory) + eval_param(&p2, &memory),
                     &p3,
                     &mut memory)?;
+                ip+4
             },
             Op::Mul(p1, p2, p3) => {
                 write_param(
                     eval_param(&p1, &memory) * eval_param(&p2, &memory),
                     &p3,
                     &mut memory)?;
+                ip+4
             },
             Op::In(p) => {
                 write_param(input.next_input(), &p, &mut memory)?;
+                ip+2
             },
             Op::Out(p) => {
                 output.next_output(eval_param(&p, &memory));
+                ip+2
             },
             Op::End => return Ok(memory.memory)
-        }
-        ip = instr.new_ip
+        };
     }
 }
 
