@@ -6,6 +6,10 @@ pub struct Memory {
 }
 
 impl Memory {
+    pub fn new(memory: Vec<Mem>) -> Self {
+        Memory {memory}
+    }
+
     fn read(&self, ptr: Ptr) -> Result<Mem, String> {
         self.memory.get(ptr).cloned().ok_or(String::from("read outside of memory"))
     }
