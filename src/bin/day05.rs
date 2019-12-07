@@ -1,13 +1,5 @@
 use aoc2019::intcode::run_program;
-use std::io::{self, Read};
-
-fn slurp_stdin() -> String {
-    let stdin = io::stdin();
-    let mut handle = stdin.lock();
-    let mut buf = String::new();
-    handle.read_to_string(&mut buf).expect("read failure");
-    buf
-}
+use aoc2019::io::slurp_stdin;
 
 fn main() {
     let data: Vec<i32> = slurp_stdin()
