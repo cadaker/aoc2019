@@ -144,18 +144,71 @@ fn decode_instr(m: &Memory, ip: Ptr) -> Result<Op, String> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+////////////////////////////////////////////////////////////////
 
-    #[test]
-    fn test_decode() {
-        assert_eq!(decode_instr(&Memory { memory: vec![1002, 4, 3, 4, 33] }, 0),
-                   Ok(Op::Mul(Param::Pos(4), Param::Imm(3), Param::Pos(4))));
-    }
+pub enum StepResult {
+    Continue(Ptr),
+    End,
 }
 
-////////////////////////////////////////////////////////////////
+pub fn step_program(
+    mem: &mut Memory,
+    ip: Ptr,
+    input: &mut dyn Input,
+    output: &mut dyn Output) -> Result<StepResult, String>
+{
+    let op = decode_instr(&mem, ip)?;
+    let new_ip = match op {
+        Op::Add(lhs, rhs, dest) => {
+            mem.write_param(
+                &dest,
+                mem.read_param(&lhs)? + mem.read_param(&rhs)?)?;
+            ip+4
+        },
+        Op::Mul(lhs, rhs, dest) => {
+            mem.write_param(
+                &dest,
+                mem.read_param(&lhs)? * mem.read_param(&rhs)?)?;
+            ip+4
+        },
+        Op::In(p) => {
+            mem.write_param(&p, input.next_input()?)?;
+            ip+2
+        },
+        Op::Out(p) => {
+            output.next_output(mem.read_param(&p)?);
+            ip+2
+        },
+        Op::JumpIfTrue(expr, dest) => {
+            if mem.read_param(&expr)? != 0 {
+                mem.read_param(&dest)? as Ptr
+            } else {
+                ip+3
+            }
+        },
+        Op::JumpIfFalse(expr, dest) => {
+            if mem.read_param(&expr)? == 0 {
+                mem.read_param(&dest)? as Ptr
+            } else {
+                ip+3
+            }
+        },
+        Op::LessThan(lhs, rhs, dest) => {
+            mem.write_param(
+                &dest,
+                (mem.read_param(&lhs)? < mem.read_param(&rhs)?) as i32)?;
+            ip+4
+        },
+        Op::Equals(lhs, rhs, dest) => {
+            mem.write_param(
+                &dest,
+                (mem.read_param(&lhs)? == mem.read_param(&rhs)?) as i32)?;
+            ip+4
+        },
+        Op::End => return Ok(StepResult::End)
+    };
+    return Ok(StepResult::Continue(new_ip))
+}
 
 pub fn run_program(
     memdata: Vec<Mem>,
@@ -165,56 +218,29 @@ pub fn run_program(
     let mut mem = Memory { memory: memdata };
     let mut ip: Ptr = 0;
     loop {
-        let op = decode_instr(&mem, ip)?;
-        ip = match op {
-            Op::Add(lhs, rhs, dest) => {
-                mem.write_param(
-                    &dest,
-                    mem.read_param(&lhs)? + mem.read_param(&rhs)?)?;
-                ip+4
-            },
-            Op::Mul(lhs, rhs, dest) => {
-                mem.write_param(
-                    &dest,
-                    mem.read_param(&lhs)? * mem.read_param(&rhs)?)?;
-                ip+4
-            },
-            Op::In(p) => {
-                mem.write_param(&p, input.next_input()?)?;
-                ip+2
-            },
-            Op::Out(p) => {
-                output.next_output(mem.read_param(&p)?);
-                ip+2
-            },
-            Op::JumpIfTrue(expr, dest) => {
-                if mem.read_param(&expr)? != 0 {
-                    mem.read_param(&dest)? as Ptr
-                } else {
-                    ip+3
-                }
-            },
-            Op::JumpIfFalse(expr, dest) => {
-                if mem.read_param(&expr)? == 0 {
-                    mem.read_param(&dest)? as Ptr
-                } else {
-                    ip+3
-                }
-            },
-            Op::LessThan(lhs, rhs, dest) => {
-                mem.write_param(
-                    &dest,
-                    (mem.read_param(&lhs)? < mem.read_param(&rhs)?) as i32)?;
-                ip+4
-            },
-            Op::Equals(lhs, rhs, dest) => {
-                mem.write_param(
-                    &dest,
-                    (mem.read_param(&lhs)? == mem.read_param(&rhs)?) as i32)?;
-                ip+4
-            },
-            Op::End => return Ok(mem.memory)
-        };
+        ip = match step_program(&mut mem, ip, input, output)? {
+            StepResult::Continue(new_ip) => new_ip,
+            StepResult::End => return Ok(mem.memory)
+        }
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_decode() {
+        assert_eq!(decode_instr(&Memory { memory: vec![1002, 4, 3, 4, 33] }, 0),
+                   Ok(Op::Mul(Param::Pos(4), Param::Imm(3), Param::Pos(4))));
+    }
+
+    #[test]
+    fn test_programs() {
+        let mem = vec![1, 5, 6, 7,   // ADD [5] [6] -> [7]
+                                99, 12, 18, 66];
+        let expected = vec![1, 5, 6, 7, 99, 12, 18, 30];
+        let res = run_program(mem, &mut vec![], &mut vec![]).unwrap();
+        assert_eq!(res, expected);
+    }
+}
