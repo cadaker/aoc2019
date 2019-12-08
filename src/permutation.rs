@@ -95,7 +95,7 @@ mod tests {
             assert_eq!(iter.next(), Some(vec![0, 2, 3, 1]));
         }
         {
-            let mut iter = Permutations::new(vec![0, 1, 2, 3]);
+            let iter = Permutations::new(vec![0, 1, 2, 3]);
             assert_eq!(iter.count(), 24);
         }
         {
