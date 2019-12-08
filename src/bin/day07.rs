@@ -54,6 +54,7 @@ impl Queue {
     fn is_empty(&self) -> bool {
         self.head.is_empty() && self.tail.is_empty()
     }
+    #[allow(dead_code)]
     fn len(&self) -> usize {
         self.head.len() + self.tail.len()
     }
