@@ -32,6 +32,126 @@ fn best_signal(program: Vec<i32>) -> i32 {
         .unwrap()
 }
 
+struct Queue {
+    head: Vec<i32>,
+    tail: Vec<i32>,
+}
+
+impl Queue {
+    fn new() -> Self {
+        Queue {head: Vec::new(), tail: Vec::new()}
+    }
+    fn push(&mut self, x: i32) {
+        self.tail.push(x)
+    }
+    fn pop(&mut self) -> Option<i32> {
+        if self.head.is_empty() {
+            self.tail.reverse();
+            std::mem::swap(&mut self.head, &mut self.tail);
+        }
+        self.head.pop()
+    }
+    fn is_empty(&self) -> bool {
+        self.head.is_empty() && self.tail.is_empty()
+    }
+    fn len(&self) -> usize {
+        self.head.len() + self.tail.len()
+    }
+}
+
+impl intcode::Input for Queue {
+    fn next_input(&mut self) -> Result<i32, String> {
+        self.pop().ok_or(String::from("no item to pop"))
+    }
+}
+
+impl intcode::Output for Queue {
+    fn next_output(&mut self, x: i32) {
+        self.push(x)
+    }
+}
+
+struct Context {
+    memory: intcode::Memory,
+    ip: usize,
+    input_queue: Queue,
+    done: bool,
+}
+
+fn all_done(contexts: &[Context]) -> bool {
+    for c in contexts {
+        if !c.done {
+            return false;
+        }
+    }
+    true
+}
+
+fn get_two(contexts: &mut Vec<Context>, ix0: usize, ix1: usize) -> (&mut Context, &mut Context) {
+    assert_ne!(ix0, ix1);
+    if ix0 < ix1 {
+        let (head, tail) = contexts.split_at_mut(ix1);
+        (&mut head[ix0], &mut tail[0])
+    } else {
+        let (head, tail) = contexts.split_at_mut(ix0);
+        (&mut tail[0], &mut head[ix1])
+    }
+}
+
+fn run_feedback(program: Vec<i32>, phases: Vec<i32>) -> Result<i32,String> {
+    let mut contexts: Vec<Context> = Vec::new();
+    for phase in phases {
+        let mut context = Context {
+            memory: intcode::Memory::new(program.clone()),
+            ip: 0,
+            input_queue: Queue::new(),
+            done: false,
+        };
+        context.input_queue.push(phase);
+        contexts.push(context);
+    }
+
+    contexts[0].input_queue.push(0);
+
+    let mut ix = 0;
+    while !all_done(&contexts) {
+        let next_ix = (ix + 1) % contexts.len();
+
+        let (cur_context, next_context) = get_two(&mut contexts, ix, next_ix);
+
+        while !cur_context.done &&
+            !(intcode::needs_input(&cur_context.memory, cur_context.ip)? &&
+                cur_context.input_queue.is_empty()) {
+
+            match intcode::step_program(
+                &mut cur_context.memory,
+                cur_context.ip,
+                &mut cur_context.input_queue,
+                &mut next_context.input_queue
+            )? {
+                intcode::StepResult::Continue(new_ip) => {
+                    cur_context.ip = new_ip;
+                },
+                intcode::StepResult::End => {
+                    cur_context.done = true;
+                },
+            }
+        }
+        ix = next_ix;
+    }
+    assert!(!contexts[0].input_queue.is_empty());
+    contexts[0].input_queue.pop().ok_or(String::from("no input at end of feedback"))
+}
+
+fn best_feedback_signal(program: Vec<i32>) -> i32 {
+    Permutations::new(vec![5, 6, 7, 8, 9])
+        .map(|phases| -> i32 {
+            run_feedback(program.clone(), phases).unwrap()
+        })
+        .max()
+        .unwrap()
+}
+
 fn main() {
     let program: Vec<i32> = slurp_stdin()
         .trim()
@@ -39,7 +159,8 @@ fn main() {
         .map(|s| s.parse().unwrap())
         .collect();
 
-    println!("{}", best_signal(program));
+    println!("{}", best_signal(program.clone()));
+    println!("{}", best_feedback_signal(program.clone()));
 }
 
 #[cfg(test)]

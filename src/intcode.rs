@@ -229,6 +229,13 @@ pub fn run_program(
     }
 }
 
+pub fn needs_input(mem: &Memory, ip: Ptr) -> Result<bool,String> {
+    match decode_instr(mem, ip)? {
+        Op::In(_) => Ok(true),
+        _ => Ok(false)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
