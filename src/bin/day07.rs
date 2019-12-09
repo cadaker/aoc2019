@@ -1,12 +1,13 @@
 use aoc2019::io::slurp_stdin;
 use aoc2019::intcode;
+use aoc2019::intcode::{Mem,Ptr};
 use aoc2019::permutation::Permutations;
 
-fn run_phase(program: Vec<i32>, phases: Vec<i32>) -> Result<i32, String> {
+fn run_phase(program: Vec<Mem>, phases: Vec<Mem>) -> Result<Mem, String> {
     let mut last_output = 0;
     for phase in phases {
-        let mut input = Vec::<i32>::new();
-        let mut output = Vec::<i32>::new();
+        let mut input = Vec::<Mem>::new();
+        let mut output = Vec::<Mem>::new();
         let mut machine = intcode::Memory::new(program.clone());
 
         input.push(last_output);
@@ -23,9 +24,9 @@ fn run_phase(program: Vec<i32>, phases: Vec<i32>) -> Result<i32, String> {
     Ok(last_output)
 }
 
-fn best_signal(program: Vec<i32>) -> i32 {
+fn best_signal(program: Vec<Mem>) -> Mem {
     Permutations::new(vec![0, 1, 2, 3, 4])
-        .map(|phases| -> i32 {
+        .map(|phases| -> Mem {
             run_phase(program.clone(), phases).unwrap()
         })
         .max()
@@ -33,18 +34,18 @@ fn best_signal(program: Vec<i32>) -> i32 {
 }
 
 struct Queue {
-    head: Vec<i32>,
-    tail: Vec<i32>,
+    head: Vec<Mem>,
+    tail: Vec<Mem>,
 }
 
 impl Queue {
     fn new() -> Self {
         Queue {head: Vec::new(), tail: Vec::new()}
     }
-    fn push(&mut self, x: i32) {
+    fn push(&mut self, x: Mem) {
         self.tail.push(x)
     }
-    fn pop(&mut self) -> Option<i32> {
+    fn pop(&mut self) -> Option<Mem> {
         if self.head.is_empty() {
             self.tail.reverse();
             std::mem::swap(&mut self.head, &mut self.tail);
@@ -61,20 +62,20 @@ impl Queue {
 }
 
 impl intcode::Input for Queue {
-    fn next_input(&mut self) -> Result<i32, String> {
+    fn next_input(&mut self) -> Result<Mem, String> {
         self.pop().ok_or(String::from("no item to pop"))
     }
 }
 
 impl intcode::Output for Queue {
-    fn next_output(&mut self, x: i32) {
+    fn next_output(&mut self, x: Mem) {
         self.push(x)
     }
 }
 
 struct Context {
     memory: intcode::Memory,
-    ip: usize,
+    ip: Ptr,
     input_queue: Queue,
     done: bool,
 }
@@ -99,7 +100,7 @@ fn get_two(contexts: &mut Vec<Context>, ix0: usize, ix1: usize) -> (&mut Context
     }
 }
 
-fn run_feedback(program: Vec<i32>, phases: Vec<i32>) -> Result<i32,String> {
+fn run_feedback(program: Vec<Mem>, phases: Vec<Mem>) -> Result<Mem,String> {
     let mut contexts: Vec<Context> = Vec::new();
     for phase in phases {
         let mut context = Context {
@@ -144,9 +145,9 @@ fn run_feedback(program: Vec<i32>, phases: Vec<i32>) -> Result<i32,String> {
     contexts[0].input_queue.pop().ok_or(String::from("no input at end of feedback"))
 }
 
-fn best_feedback_signal(program: Vec<i32>) -> i32 {
+fn best_feedback_signal(program: Vec<Mem>) -> Mem {
     Permutations::new(vec![5, 6, 7, 8, 9])
-        .map(|phases| -> i32 {
+        .map(|phases| -> Mem {
             run_feedback(program.clone(), phases).unwrap()
         })
         .max()
@@ -154,7 +155,7 @@ fn best_feedback_signal(program: Vec<i32>) -> i32 {
 }
 
 fn main() {
-    let program: Vec<i32> = slurp_stdin()
+    let program: Vec<Mem> = slurp_stdin()
         .trim()
         .split(",")
         .map(|s| s.parse().unwrap())

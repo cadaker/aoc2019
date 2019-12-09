@@ -1,5 +1,5 @@
-type Mem = i32;
-type Ptr = usize;
+pub type Mem = i64;
+pub type Ptr = usize;
 
 pub struct Memory {
     memory: Vec<Mem>
@@ -71,7 +71,7 @@ impl Input for Vec<Mem> {
 }
 
 impl Output for Vec<Mem> {
-    fn next_output(&mut self, x: i32) {
+    fn next_output(&mut self, x: Mem) {
         self.push(x)
     }
 }
@@ -81,7 +81,7 @@ fn get_flag(opcode: Mem, index: u32) -> i32 {
     for _ in 0..index {
         flags /= 10
     }
-    flags % 10
+    (flags % 10) as i32
 }
 
 fn decode_param(m: &Memory, ptr: Ptr, opcode: Mem, index: u32) -> Result<Param, String> {
@@ -200,13 +200,13 @@ pub fn step_program(
         Op::LessThan(lhs, rhs, dest) => {
             mem.write_param(
                 &dest,
-                (mem.read_param(&lhs)? < mem.read_param(&rhs)?) as i32)?;
+                (mem.read_param(&lhs)? < mem.read_param(&rhs)?) as Mem)?;
             ip+4
         },
         Op::Equals(lhs, rhs, dest) => {
             mem.write_param(
                 &dest,
-                (mem.read_param(&lhs)? == mem.read_param(&rhs)?) as i32)?;
+                (mem.read_param(&lhs)? == mem.read_param(&rhs)?) as Mem)?;
             ip+4
         },
         Op::End => return Ok(StepResult::End)
