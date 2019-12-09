@@ -10,28 +10,27 @@ impl Memory {
         Memory {memory}
     }
 
-    fn read(&self, ptr: Ptr) -> Result<Mem, String> {
-        self.memory.get(ptr).cloned().ok_or(String::from("read outside of memory"))
+    fn read(&self, ptr: Ptr) -> Mem {
+        self.memory.get(ptr).cloned().unwrap_or(0)
     }
 
-    fn write(&mut self, ptr: Ptr, val: Mem) -> Result<(), String> {
-        *self.memory
-            .get_mut(ptr)
-            .ok_or(String::from("write outside of memory"))?
-            = val;
-        Ok(())
+    fn write(&mut self, ptr: Ptr, val: Mem) {
+        if ptr >= self.memory.len() {
+            self.memory.resize(ptr+1, 0);
+        }
+        self.memory[ptr] = val;
     }
 
-    fn read_param(&self, param: &Param) -> Result<Mem, String> {
+    fn read_param(&self, param: &Param) -> Mem {
         match *param {
             Param::Pos(ptr) => self.read(ptr),
-            Param::Imm(val) => Ok(val),
+            Param::Imm(val) => val,
         }
     }
 
     fn write_param(&mut self, param: &Param, value: Mem) -> Result<(), String> {
         match *param {
-            Param::Pos(ptr) => self.write(ptr, value),
+            Param::Pos(ptr) => Ok(self.write(ptr, value)),
             Param::Imm(_) => Err(String::from("writing to immediate")),
         }
     }
@@ -85,7 +84,7 @@ fn get_flag(opcode: Mem, index: u32) -> i32 {
 }
 
 fn decode_param(m: &Memory, ptr: Ptr, opcode: Mem, index: u32) -> Result<Param, String> {
-    let val = m.read(ptr)?;
+    let val = m.read(ptr);
 
     let flag = get_flag(opcode, index);
     if flag == 0 {
@@ -105,7 +104,7 @@ fn decode_3_params(m: &Memory, ptr: Ptr, opcode: Mem) -> Result<(Param,Param,Par
 }
 
 fn decode_instr(m: &Memory, ip: Ptr) -> Result<Op, String> {
-    let opcode = m.read(ip)?;
+    let opcode = m.read(ip);
     match opcode % 100 {
         1 => {
             let (p0, p1, p2) = decode_3_params(m, ip+1, opcode)?;
@@ -167,13 +166,13 @@ pub fn step_program(
         Op::Add(lhs, rhs, dest) => {
             mem.write_param(
                 &dest,
-                mem.read_param(&lhs)? + mem.read_param(&rhs)?)?;
+                mem.read_param(&lhs) + mem.read_param(&rhs))?;
             (ip+4, rel_base)
         },
         Op::Mul(lhs, rhs, dest) => {
             mem.write_param(
                 &dest,
-                mem.read_param(&lhs)? * mem.read_param(&rhs)?)?;
+                mem.read_param(&lhs) * mem.read_param(&rhs))?;
             (ip+4, rel_base)
         },
         Op::In(p) => {
@@ -181,19 +180,19 @@ pub fn step_program(
             (ip+2, rel_base)
         },
         Op::Out(p) => {
-            output.next_output(mem.read_param(&p)?);
+            output.next_output(mem.read_param(&p));
             (ip+2, rel_base)
         },
         Op::JumpIfTrue(expr, dest) => {
-            if mem.read_param(&expr)? != 0 {
-                (mem.read_param(&dest)? as Ptr, rel_base)
+            if mem.read_param(&expr) != 0 {
+                (mem.read_param(&dest) as Ptr, rel_base)
             } else {
                 (ip+3, rel_base)
             }
         },
         Op::JumpIfFalse(expr, dest) => {
-            if mem.read_param(&expr)? == 0 {
-                (mem.read_param(&dest)? as Ptr, rel_base)
+            if mem.read_param(&expr) == 0 {
+                (mem.read_param(&dest) as Ptr, rel_base)
             } else {
                 (ip+3, rel_base)
             }
@@ -201,13 +200,13 @@ pub fn step_program(
         Op::LessThan(lhs, rhs, dest) => {
             mem.write_param(
                 &dest,
-                (mem.read_param(&lhs)? < mem.read_param(&rhs)?) as Mem)?;
+                (mem.read_param(&lhs) < mem.read_param(&rhs)) as Mem)?;
             (ip+4, rel_base)
         },
         Op::Equals(lhs, rhs, dest) => {
             mem.write_param(
                 &dest,
-                (mem.read_param(&lhs)? == mem.read_param(&rhs)?) as Mem)?;
+                (mem.read_param(&lhs) == mem.read_param(&rhs)) as Mem)?;
             (ip+4, rel_base)
         },
         Op::End => return Ok(StepResult::End)
@@ -257,5 +256,12 @@ mod tests {
         let expected = vec![1, 5, 6, 7, 99, 12, 18, 30];
         let res = run_program(mem, &mut vec![], &mut vec![]).unwrap();
         assert_eq!(res, expected);
+    }
+
+    #[test]
+    fn test_memory() {
+        let mem = Memory { memory: vec![1, 2, 3, 4] };
+        assert_eq!(mem.read(2), 3);
+        assert_eq!(mem.read(119), 0);
     }
 }
