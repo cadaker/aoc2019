@@ -267,13 +267,41 @@ mod tests {
     }
 
     #[test]
-    fn test_programs() {
+    fn test_program1() {
         let mem = vec![1, 5, 6, 7,   // ADD [5] [6] -> [7]
-                                99, 12, 18, 66];
+                       99, 12, 18, 66];
         let expected = vec![1, 5, 6, 7, 99, 12, 18, 30];
         let res = run_program(mem, &mut vec![], &mut vec![]).unwrap();
         assert_eq!(res, expected);
     }
+    #[test]
+    fn test_program2()
+    {
+        let mem = vec![109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99];
+        let expected = mem.clone();
+        let mut out = vec![];
+        run_program(mem, &mut vec![], &mut out).unwrap();
+        assert_eq!(out, expected);
+    }
+
+    #[test]
+    fn test_program3()
+    {
+        let mem = vec![1102,34915192,34915192,7,4,7,99,0];
+        let mut out = vec![];
+        run_program(mem, &mut vec![], &mut out).unwrap();
+        assert!(*out.first().unwrap() > 1000000000000000);
+    }
+
+    #[test]
+    fn test_program4()
+    {
+        let mem = vec![104,1125899906842624,99];
+        let mut out = vec![];
+        run_program(mem, &mut vec![], &mut out).unwrap();
+        assert_eq!(*out.first().unwrap(), 1125899906842624);
+    }
+
 
     #[test]
     fn test_memory() {
