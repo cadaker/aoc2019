@@ -21,17 +21,19 @@ impl Memory {
         self.memory[ptr] = val;
     }
 
-    fn read_param(&self, param: &Param) -> Mem {
+    fn read_param(&self, param: &Param, rel_base: Mem) -> Mem {
         match *param {
             Param::Pos(ptr) => self.read(ptr),
             Param::Imm(val) => val,
+            Param::Rel(adj) => self.read((rel_base+adj) as Ptr),
         }
     }
 
-    fn write_param(&mut self, param: &Param, value: Mem) -> Result<(), String> {
+    fn write_param(&mut self, param: &Param, value: Mem, rel_base: Mem) -> Result<(), String> {
         match *param {
             Param::Pos(ptr) => Ok(self.write(ptr, value)),
             Param::Imm(_) => Err(String::from("writing to immediate")),
+            Param::Rel(adj) => Ok(self.write((rel_base+adj) as Ptr, value)),
         }
     }
 }
@@ -40,6 +42,7 @@ impl Memory {
 enum Param {
     Pos(Ptr),
     Imm(Mem),
+    Rel(Mem),
 }
 
 #[derive(Debug,PartialEq)]
@@ -52,6 +55,7 @@ enum Op {
     JumpIfFalse(Param, Param),
     LessThan(Param, Param, Param),
     Equals(Param, Param, Param),
+    AdjustRelBase(Param),
     End,
 }
 
@@ -91,6 +95,8 @@ fn decode_param(m: &Memory, ptr: Ptr, opcode: Mem, index: u32) -> Result<Param, 
         Ok(Param::Pos(val as Ptr))
     } else if flag == 1 {
         Ok(Param::Imm(val))
+    } else if flag == 2 {
+        Ok(Param::Rel(val))
     } else {
         Err(String::from("invalid parameter mode"))
     }
@@ -140,6 +146,10 @@ fn decode_instr(m: &Memory, ip: Ptr) -> Result<Op, String> {
             let (p0, p1, p2) = decode_3_params(m, ip+1, opcode)?;
             Ok(Op::Equals(p0, p1, p2))
         },
+        9 => {
+            let amount = decode_param(m, ip+1, opcode, 0)?;
+            Ok(Op::AdjustRelBase(amount))
+        },
         99 => {
             Ok(Op::End)
         },
@@ -166,33 +176,35 @@ pub fn step_program(
         Op::Add(lhs, rhs, dest) => {
             mem.write_param(
                 &dest,
-                mem.read_param(&lhs) + mem.read_param(&rhs))?;
+                mem.read_param(&lhs, rel_base) + mem.read_param(&rhs, rel_base),
+                rel_base)?;
             (ip+4, rel_base)
         },
         Op::Mul(lhs, rhs, dest) => {
             mem.write_param(
                 &dest,
-                mem.read_param(&lhs) * mem.read_param(&rhs))?;
+                mem.read_param(&lhs, rel_base) * mem.read_param(&rhs, rel_base),
+                rel_base)?;
             (ip+4, rel_base)
         },
         Op::In(p) => {
-            mem.write_param(&p, input.next_input()?)?;
+            mem.write_param(&p, input.next_input()?, rel_base)?;
             (ip+2, rel_base)
         },
         Op::Out(p) => {
-            output.next_output(mem.read_param(&p));
+            output.next_output(mem.read_param(&p, rel_base));
             (ip+2, rel_base)
         },
         Op::JumpIfTrue(expr, dest) => {
-            if mem.read_param(&expr) != 0 {
-                (mem.read_param(&dest) as Ptr, rel_base)
+            if mem.read_param(&expr, rel_base) != 0 {
+                (mem.read_param(&dest, rel_base) as Ptr, rel_base)
             } else {
                 (ip+3, rel_base)
             }
         },
         Op::JumpIfFalse(expr, dest) => {
-            if mem.read_param(&expr) == 0 {
-                (mem.read_param(&dest) as Ptr, rel_base)
+            if mem.read_param(&expr, rel_base) == 0 {
+                (mem.read_param(&dest, rel_base) as Ptr, rel_base)
             } else {
                 (ip+3, rel_base)
             }
@@ -200,14 +212,19 @@ pub fn step_program(
         Op::LessThan(lhs, rhs, dest) => {
             mem.write_param(
                 &dest,
-                (mem.read_param(&lhs) < mem.read_param(&rhs)) as Mem)?;
+                (mem.read_param(&lhs, rel_base) < mem.read_param(&rhs, rel_base)) as Mem,
+                rel_base)?;
             (ip+4, rel_base)
         },
         Op::Equals(lhs, rhs, dest) => {
             mem.write_param(
                 &dest,
-                (mem.read_param(&lhs) == mem.read_param(&rhs)) as Mem)?;
+                (mem.read_param(&lhs, rel_base) == mem.read_param(&rhs, rel_base)) as Mem,
+                rel_base)?;
             (ip+4, rel_base)
+        },
+        Op::AdjustRelBase(adjustment) => {
+            (ip+2, rel_base+mem.read_param(&adjustment, rel_base))
         },
         Op::End => return Ok(StepResult::End)
     };
