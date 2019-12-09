@@ -151,67 +151,68 @@ fn decode_instr(m: &Memory, ip: Ptr) -> Result<Op, String> {
 ////////////////////////////////////////////////////////////////
 
 pub enum StepResult {
-    Continue(Ptr),
+    Continue(Ptr, Mem), // ip, rel_base
     End,
 }
 
 pub fn step_program(
     mem: &mut Memory,
     ip: Ptr,
+    rel_base: Mem,
     input: &mut dyn Input,
     output: &mut dyn Output) -> Result<StepResult, String>
 {
     let op = decode_instr(&mem, ip)?;
-    let new_ip = match op {
+    let (new_ip, new_rel_base) = match op {
         Op::Add(lhs, rhs, dest) => {
             mem.write_param(
                 &dest,
                 mem.read_param(&lhs)? + mem.read_param(&rhs)?)?;
-            ip+4
+            (ip+4, rel_base)
         },
         Op::Mul(lhs, rhs, dest) => {
             mem.write_param(
                 &dest,
                 mem.read_param(&lhs)? * mem.read_param(&rhs)?)?;
-            ip+4
+            (ip+4, rel_base)
         },
         Op::In(p) => {
             mem.write_param(&p, input.next_input()?)?;
-            ip+2
+            (ip+2, rel_base)
         },
         Op::Out(p) => {
             output.next_output(mem.read_param(&p)?);
-            ip+2
+            (ip+2, rel_base)
         },
         Op::JumpIfTrue(expr, dest) => {
             if mem.read_param(&expr)? != 0 {
-                mem.read_param(&dest)? as Ptr
+                (mem.read_param(&dest)? as Ptr, rel_base)
             } else {
-                ip+3
+                (ip+3, rel_base)
             }
         },
         Op::JumpIfFalse(expr, dest) => {
             if mem.read_param(&expr)? == 0 {
-                mem.read_param(&dest)? as Ptr
+                (mem.read_param(&dest)? as Ptr, rel_base)
             } else {
-                ip+3
+                (ip+3, rel_base)
             }
         },
         Op::LessThan(lhs, rhs, dest) => {
             mem.write_param(
                 &dest,
                 (mem.read_param(&lhs)? < mem.read_param(&rhs)?) as Mem)?;
-            ip+4
+            (ip+4, rel_base)
         },
         Op::Equals(lhs, rhs, dest) => {
             mem.write_param(
                 &dest,
                 (mem.read_param(&lhs)? == mem.read_param(&rhs)?) as Mem)?;
-            ip+4
+            (ip+4, rel_base)
         },
         Op::End => return Ok(StepResult::End)
     };
-    return Ok(StepResult::Continue(new_ip))
+    return Ok(StepResult::Continue(new_ip, new_rel_base))
 }
 
 pub fn run_program(
@@ -221,11 +222,14 @@ pub fn run_program(
 {
     let mut mem = Memory { memory: memdata };
     let mut ip: Ptr = 0;
+    let mut rel_base: Mem = 0;
     loop {
-        ip = match step_program(&mut mem, ip, input, output)? {
-            StepResult::Continue(new_ip) => new_ip,
+        let (new_ip,new_rel_base) = match step_program(&mut mem, ip, rel_base, input, output)? {
+            StepResult::Continue(new_ip, new_rel_base) => (new_ip, new_rel_base),
             StepResult::End => return Ok(mem.memory)
-        }
+        };
+        ip = new_ip;
+        rel_base = new_rel_base;
     }
 }
 

@@ -13,11 +13,12 @@ fn run_phase(program: Vec<Mem>, phases: Vec<Mem>) -> Result<Mem, String> {
         input.push(last_output);
         input.push(phase);
         let mut ip = 0;
+        let mut rel_base = 0;
         while output.is_empty() {
-            ip = match intcode::step_program(&mut machine, ip, &mut input, &mut output)? {
-                intcode::StepResult::Continue(ptr) => ptr,
+            match intcode::step_program(&mut machine, ip, rel_base, &mut input, &mut output)? {
+                intcode::StepResult::Continue(new_ip, new_rel_base) => { ip = new_ip; rel_base = new_rel_base },
                 intcode::StepResult::End => return Err(String::from("premature end of program")),
-            }
+            };
         }
         last_output = output[0];
     }
@@ -76,6 +77,7 @@ impl intcode::Output for Queue {
 struct Context {
     memory: intcode::Memory,
     ip: Ptr,
+    rel_base: Mem,
     input_queue: Queue,
     done: bool,
 }
@@ -106,6 +108,7 @@ fn run_feedback(program: Vec<Mem>, phases: Vec<Mem>) -> Result<Mem,String> {
         let mut context = Context {
             memory: intcode::Memory::new(program.clone()),
             ip: 0,
+            rel_base: 0,
             input_queue: Queue::new(),
             done: false,
         };
@@ -128,11 +131,13 @@ fn run_feedback(program: Vec<Mem>, phases: Vec<Mem>) -> Result<Mem,String> {
             match intcode::step_program(
                 &mut cur_context.memory,
                 cur_context.ip,
+                cur_context.rel_base,
                 &mut cur_context.input_queue,
                 &mut next_context.input_queue
             )? {
-                intcode::StepResult::Continue(new_ip) => {
+                intcode::StepResult::Continue(new_ip, new_rel_base) => {
                     cur_context.ip = new_ip;
+                    cur_context.rel_base = new_rel_base;
                 },
                 intcode::StepResult::End => {
                     cur_context.done = true;
