@@ -1,4 +1,6 @@
 use aoc2019::io::slurp_stdin;
+use std::cmp::Ordering::Equal;
+use std::collections::HashSet;
 
 fn parse_map(map: &str) -> Vec<(i32,i32)> {
     let mut points = Vec::new();
@@ -61,23 +63,72 @@ fn asteroid_score(asteroids: &[(i32,i32)], p: (i32,i32)) -> usize {
     unblocked_count(&rel_points)
 }
 
-fn find_best_asteroid(asteroids: &[(i32,i32)]) -> usize {
-    asteroids.iter()
+fn find_best_asteroid(asteroids: &[(i32,i32)]) -> (i32,i32) {
+    *asteroids.iter()
         .clone()
-        .map(|p| asteroid_score(asteroids, *p))
-        .max()
+        .max_by_key(|p| asteroid_score(asteroids, **p))
         .unwrap()
+}
+
+fn single_sweep_laser_hits(rel_points: &[(i32,i32)]) -> Vec<(i32,i32)> {
+    fn angle(dx: i32, dy: i32) -> f64 {
+        let dxf: f64 = dx.into();
+        let dyf: f64 = dy.into();
+        (-dxf).atan2(dyf)
+    }
+
+    let sweep_order: Vec<(i32,i32)> = {
+        let mut tmp = Vec::from(rel_points);
+        tmp.sort_by(|p, q| {
+            angle(p.0, p.1).partial_cmp(&angle(q.0, q.1)).unwrap_or(Equal)
+        });
+        tmp
+    };
+
+    let mut hit = Vec::new();
+    for p in sweep_order {
+        if !blocked_by_any(rel_points, p) {
+            hit.push(p)
+        }
+    }
+    hit
+}
+
+fn find_nth_lasered(rel_points: &[(i32,i32)], n: usize) -> Option<(i32,i32)> {
+    let mut left_to_laser = n;
+    let mut points_remaining = HashSet::new();
+    for p in rel_points {
+        points_remaining.insert(*p);
+    }
+
+    loop {
+        let hit = single_sweep_laser_hits(
+            &points_remaining.iter().cloned().collect::<Vec<_>>()
+        );
+        if hit.len() > left_to_laser {
+            return Some(hit[left_to_laser]);
+        } else if hit.is_empty() {
+            return None;
+        }
+        left_to_laser -= hit.len();
+        for p in hit {
+            points_remaining.remove(&p);
+        }
+    }
 }
 
 fn main() {
     let asteroids = parse_map(&slurp_stdin());
-    println!("{}", find_best_asteroid(&asteroids));
+    let best_asteroid = find_best_asteroid(&asteroids);
+    println!("{}", asteroid_score(&asteroids, best_asteroid));
+    let rel_points = center_around(&asteroids, best_asteroid);
+    let laser200 = find_nth_lasered(&rel_points, 199).unwrap();
+    println!("{}", (laser200.0 + best_asteroid.0) * 100 + (laser200.1 + best_asteroid.1));
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::hash::Hash;
 
     #[test]
     fn test_map() {
@@ -119,5 +170,33 @@ mod tests {
         assert_eq!(asteroid_score(&asteroids, (4,3)), 7);
         assert_eq!(asteroid_score(&asteroids, (3,4)), 8);
         assert_eq!(asteroid_score(&asteroids, (4,4)), 7);
+    }
+
+    #[test]
+    fn test_angle_sweep_order() {
+        let asteroids = parse_map("###\n#.#\n###");
+        let rel_points = center_around(&asteroids, (1,1));
+        let hit = single_sweep_laser_hits(&rel_points);
+        assert_eq!(hit, vec![(0,-1), (1,-1), (1,0), (1,1), (0,1), (-1,1), (-1,0), (-1,-1)]);
+    }
+
+    #[test]
+    fn test_angle_sweep_occlusion() {
+        // #G#2#
+        // EF134
+        // #D.5#
+        // CB976
+        // #A#8#
+        let asteroids = parse_map("#####\n#####\n##.##\n#####\n#####");
+        let rel_points = center_around(&asteroids, (2,2));
+        let hit = single_sweep_laser_hits(&rel_points);
+        assert_eq!(hit, vec![( 0,-1), ( 1,-2), ( 1,-1), ( 2,-1),
+                             ( 1, 0), ( 2, 1), ( 1, 1), ( 1, 2),
+                             ( 0, 1), (-1, 2), (-1, 1), (-2, 1),
+                             (-1, 0), (-2,-1), (-1,-1), (-1,-2)]);
+
+        assert_eq!(find_nth_lasered(&rel_points, 4), Some((1,0)));
+        assert_eq!(find_nth_lasered(&rel_points, 16), Some((0,-2)));
+        assert_eq!(find_nth_lasered(&rel_points, 200), None);
     }
 }
