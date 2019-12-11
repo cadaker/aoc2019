@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 use aoc2019::io::slurp_stdin;
 use aoc2019::intcode;
-use std::rc::Rc;
 use std::cell::RefCell;
-use std::ops::Deref;
 
 #[derive(Clone,Copy,PartialEq,Eq)]
 enum Color {
@@ -64,18 +62,18 @@ impl Robot {
     }
 }
 
-struct RobotInput {
-    robot: Rc<RefCell<Robot>>,
+struct RobotInput<'a> {
+    robot: &'a RefCell<Robot>,
 }
 
-struct RobotOutput {
+struct RobotOutput<'a> {
     paint_instruction: Option<Color>,
-    robot: Rc<RefCell<Robot>>,
+    robot: &'a RefCell<Robot>,
 }
 
-impl intcode::Input for RobotInput {
+impl intcode::Input for RobotInput<'_> {
     fn next_input(&mut self) -> Result<i64, String> {
-        let robot = self.robot.deref().borrow();
+        let robot = self.robot.borrow();
         let pos = (robot.x, robot.y);
         match *robot.colors.get(&pos).unwrap_or(&Color::Black) {
             Color:: Black => Ok(BLACK),
@@ -84,7 +82,7 @@ impl intcode::Input for RobotInput {
     }
 }
 
-impl intcode::Output for RobotOutput {
+impl intcode::Output for RobotOutput<'_> {
     fn next_output(&mut self, x: i64) {
         if self.paint_instruction.is_none() {
             self.paint_instruction = match x {
@@ -113,27 +111,27 @@ fn main() {
         .collect();
 
     {
-        let robot = Rc::new(RefCell::new(Robot::new()));
-        let mut input = RobotInput { robot: Rc::clone(&robot) };
+        let robot = RefCell::new(Robot::new());
+        let mut input = RobotInput { robot: &robot };
         let mut output = RobotOutput {
             paint_instruction: None,
-            robot: Rc::clone(&robot),
+            robot: &robot,
         };
         intcode::run_program(program.clone(), &mut input, &mut output).unwrap();
 
-        println!("{}", robot.borrow_mut().colors.len());
+        println!("{}", robot.borrow().colors.len());
     }
     {
-        let robot = Rc::new(RefCell::new(Robot::new()));
+        let robot = RefCell::new(Robot::new());
         robot.borrow_mut().colors.insert((0,0), Color::White);
-        let mut input = RobotInput { robot: Rc::clone(&robot) };
+        let mut input = RobotInput { robot: &robot };
         let mut output = RobotOutput {
             paint_instruction: None,
-            robot: Rc::clone(&robot),
+            robot: &robot,
         };
         intcode::run_program(program.clone(), &mut input, &mut output).unwrap();
 
-        let points: Vec<(i32,i32)> = robot.borrow_mut().colors
+        let points: Vec<(i32,i32)> = robot.borrow().colors
             .iter()
             .filter(|&(_, color)| *color == Color::White )
             .map(|(p,_)| *p)
@@ -145,7 +143,7 @@ fn main() {
         for y_inv in miny..=maxy {
             let y = (maxy - y_inv) + miny;
             for x in minx..=maxx {
-                let pixel = robot.borrow_mut().colors.get(&(x,y)).cloned();
+                let pixel = robot.borrow().colors.get(&(x,y)).cloned();
                 if pixel == Some(Color::White) {
                     print!("#");
                 } else {
