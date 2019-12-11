@@ -140,8 +140,7 @@ fn main() {
         let maxx = points.iter().map(|p| p.0).max().unwrap();
         let miny = points.iter().map(|p| p.1).min().unwrap();
         let maxy = points.iter().map(|p| p.1).max().unwrap();
-        for y_inv in miny..=maxy {
-            let y = (maxy - y_inv) + miny;
+        for y in (miny..=maxy).rev() {
             for x in minx..=maxx {
                 let pixel = robot.borrow().colors.get(&(x,y)).cloned();
                 if pixel == Some(Color::White) {
