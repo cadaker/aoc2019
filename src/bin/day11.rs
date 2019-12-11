@@ -112,13 +112,47 @@ fn main() {
         .map(|s| s.parse::<intcode::Mem>().unwrap())
         .collect();
 
-    let robot = Rc::new(RefCell::new(Robot::new()));
-    let mut input = RobotInput {robot: Rc::clone(&robot) };
-    let mut output = RobotOutput {
-        paint_instruction: None,
-        robot: Rc::clone(&robot),
-    };
-    intcode::run_program(program.clone(), &mut input, &mut output).unwrap();
+    {
+        let robot = Rc::new(RefCell::new(Robot::new()));
+        let mut input = RobotInput { robot: Rc::clone(&robot) };
+        let mut output = RobotOutput {
+            paint_instruction: None,
+            robot: Rc::clone(&robot),
+        };
+        intcode::run_program(program.clone(), &mut input, &mut output).unwrap();
 
-    println!("{}", robot.borrow_mut().colors.len());
+        println!("{}", robot.borrow_mut().colors.len());
+    }
+    {
+        let robot = Rc::new(RefCell::new(Robot::new()));
+        robot.borrow_mut().colors.insert((0,0), Color::White);
+        let mut input = RobotInput { robot: Rc::clone(&robot) };
+        let mut output = RobotOutput {
+            paint_instruction: None,
+            robot: Rc::clone(&robot),
+        };
+        intcode::run_program(program.clone(), &mut input, &mut output).unwrap();
+
+        let points: Vec<(i32,i32)> = robot.borrow_mut().colors
+            .iter()
+            .filter(|&(_, color)| *color == Color::White )
+            .map(|(p,_)| *p)
+            .collect();
+        let minx = points.iter().map(|p| p.0).min().unwrap();
+        let maxx = points.iter().map(|p| p.0).max().unwrap();
+        let miny = points.iter().map(|p| p.1).min().unwrap();
+        let maxy = points.iter().map(|p| p.1).max().unwrap();
+        for y_inv in miny..=maxy {
+            let y = (maxy - y_inv) + miny;
+            for x in minx..=maxx {
+                let pixel = robot.borrow_mut().colors.get(&(x,y)).cloned();
+                if pixel == Some(Color::White) {
+                    print!("#");
+                } else {
+                    print!(" ");
+                }
+            }
+            println!();
+        }
+    }
 }
