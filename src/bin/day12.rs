@@ -2,82 +2,88 @@ extern crate regex;
 
 use aoc2019::io::slurp_stdin;
 
-#[derive(Clone,Copy)]
-struct V {
-    x: i64,
-    y: i64,
-    z: i64,
-}
-
-fn get_input() -> Vec<V> {
+fn get_input() -> (Vec<i64>, Vec<i64>, Vec<i64>) {
     let re = regex::Regex::new(r"<x=(-?\d+), y=(-?\d+), z=(-?\d+)>").unwrap();
-    let mut ret = Vec::new();
+
+    let mut xs = Vec::new();
+    let mut ys = Vec::new();
+    let mut zs = Vec::new();
 
     for m in re.captures_iter(&slurp_stdin()) {
-        fn get(c: &regex::Captures, i: usize) -> i64 {
-            c.get(i).unwrap().as_str().parse().unwrap()
-        }
-        ret.push(V {x: get(&m, 1), y: get(&m, 2), z: get(&m, 3)});
+        let get = |i| -> i64 {
+            m.get(i).unwrap().as_str().parse().unwrap()
+        };
+        xs.push(get(1));
+        ys.push(get(2));
+        zs.push(get(3));
     }
-    ret
+    (xs,ys,zs)
 }
 
-fn step(pos: &mut Vec<V>, vel: &mut Vec<V>) {
+fn step_coord(pos: &mut [i64], vel: &mut [i64]) {
     for i in 0..pos.len() {
         for j in i+1..pos.len() {
-            if pos[i].x > pos[j].x {
-                vel[i].x -= 1;
-                vel[j].x += 1;
-            } else if pos[i].x < pos[j].x {
-                vel[i].x += 1;
-                vel[j].x -= 1;
-            }
-
-            if pos[i].y > pos[j].y {
-                vel[i].y -= 1;
-                vel[j].y += 1;
-            } else if pos[i].y < pos[j].y {
-                vel[i].y += 1;
-                vel[j].y -= 1;
-            }
-
-            if pos[i].z > pos[j].z {
-                vel[i].z -= 1;
-                vel[j].z += 1;
-            } else if pos[i].z < pos[j].z {
-                vel[i].z += 1;
-                vel[j].z -= 1;
+            if pos[i] > pos[j] {
+                vel[i] -= 1;
+                vel[j] += 1;
+            } else if pos[i] < pos[j] {
+                vel[i] += 1;
+                vel[j] -= 1;
             }
         }
     }
 
     for i in 0..pos.len() {
-        pos[i].x += vel[i].x;
-        pos[i].y += vel[i].y;
-        pos[i].z += vel[i].z;
+        pos[i] += vel[i];
     }
 }
 
-fn energy(pos: &Vec<V>, vel: &Vec<V>) -> i64 {
+fn step(
+    pos_x: &mut [i64],
+    pos_y: &mut [i64],
+    pos_z: &mut [i64],
+    vel_x: &mut [i64],
+    vel_y: &mut [i64],
+    vel_z: &mut [i64])
+{
+    step_coord(pos_x, vel_x);
+    step_coord(pos_y, vel_y);
+    step_coord(pos_z, vel_z);
+}
+
+fn energy(
+    pos_x: &[i64],
+    pos_y: &[i64],
+    pos_z: &[i64],
+    vel_x: &[i64],
+    vel_y: &[i64],
+    vel_z: &[i64]) -> i64
+{
     let mut e = 0;
 
-    fn sum_abs(v: &V) -> i64 {
-        v.x.abs() + v.y.abs() + v.z.abs()
+    fn sum_abs(x: i64, y: i64, z: i64) -> i64 {
+        x.abs() + y.abs() + z.abs()
     }
 
-    for i in 0..pos.len() {
-        e += sum_abs(&pos[i]) * sum_abs(&vel[i]);
+    for i in 0..pos_x.len() {
+        e += sum_abs(pos_x[i], pos_y[i], pos_z[i]) * sum_abs(vel_x[i], vel_y[i], vel_z[i]);
     }
     e
 }
 
 fn main() {
-    let mut pos = get_input();
-    let mut vel: Vec<V> = Vec::new();
-    vel.resize(pos.len(), V { x: 0, y: 0, z: 0 });
+    let (mut pos_x, mut pos_y, mut pos_z) = get_input();
+    let zeros = {
+        let mut v = Vec::new();
+        v.resize(pos_x.len(), 0i64);
+        v
+    };
+    let mut vel_x = zeros.clone();
+    let mut vel_y = zeros.clone();
+    let mut vel_z = zeros.clone();
 
     for _ in 0..1000 {
-        step(&mut pos, &mut vel);
+        step(&mut pos_x, &mut pos_y, &mut pos_z, &mut vel_x, &mut vel_y, &mut vel_z);
     }
-    println!("{}", energy(&pos, &vel));
+    println!("{}", energy(&pos_x, &pos_y, &pos_z, &vel_x, &vel_y, &vel_z));
 }
