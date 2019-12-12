@@ -1,6 +1,7 @@
 extern crate regex;
 
 use aoc2019::io::slurp_stdin;
+use std::iter::FromIterator;
 
 fn get_input() -> (Vec<i64>, Vec<i64>, Vec<i64>) {
     let re = regex::Regex::new(r"<x=(-?\d+), y=(-?\d+), z=(-?\d+)>").unwrap();
@@ -71,19 +72,56 @@ fn energy(
     e
 }
 
+fn loop_length(start_pos: &[i64], start_vel: &[i64]) -> usize {
+    let mut iters = 0;
+    let mut pos = Vec::from_iter(start_pos.iter().cloned());
+    let mut vel = Vec::from_iter(start_vel.iter().cloned());
+
+    loop {
+        step_coord(&mut pos, &mut vel);
+        iters += 1;
+        if pos == start_pos && vel == start_vel {
+            return iters;
+        }
+    }
+}
+
+fn gcd(x: usize, y: usize) -> usize {
+    if x == 0 {
+        y
+    } else {
+        gcd(y%x, x)
+    }
+}
+
+fn lcm(x: usize, y: usize) -> usize {
+    x * y / gcd(x, y)
+}
+
 fn main() {
-    let (mut pos_x, mut pos_y, mut pos_z) = get_input();
+    let (start_pos_x, start_pos_y, start_pos_z) = get_input();
     let zeros = {
         let mut v = Vec::new();
-        v.resize(pos_x.len(), 0i64);
+        v.resize(start_pos_x.len(), 0i64);
         v
     };
-    let mut vel_x = zeros.clone();
-    let mut vel_y = zeros.clone();
-    let mut vel_z = zeros.clone();
+    {
+        let mut pos_x = start_pos_x.clone();
+        let mut pos_y = start_pos_y.clone();
+        let mut pos_z = start_pos_z.clone();
+        let mut vel_x = zeros.clone();
+        let mut vel_y = zeros.clone();
+        let mut vel_z = zeros.clone();
 
-    for _ in 0..1000 {
-        step(&mut pos_x, &mut pos_y, &mut pos_z, &mut vel_x, &mut vel_y, &mut vel_z);
+        for _ in 0..1000 {
+            step(&mut pos_x, &mut pos_y, &mut pos_z, &mut vel_x, &mut vel_y, &mut vel_z);
+        }
+        println!("{}", energy(&pos_x, &pos_y, &pos_z, &vel_x, &vel_y, &vel_z));
     }
-    println!("{}", energy(&pos_x, &pos_y, &pos_z, &vel_x, &vel_y, &vel_z));
+    {
+        let loop_x = loop_length(&start_pos_x, &zeros);
+        let loop_y = loop_length(&start_pos_y, &zeros);
+        let loop_z = loop_length(&start_pos_z, &zeros);
+        println!("{}", lcm(lcm(loop_x, loop_y), loop_z))
+    }
 }
