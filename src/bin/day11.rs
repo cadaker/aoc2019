@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use aoc2019::io::slurp_stdin;
+use aoc2019::io::{slurp_stdin, parse_intcode_program};
 use aoc2019::intcode;
 use std::cell::RefCell;
 
@@ -104,11 +104,7 @@ impl intcode::Output for RobotOutput<'_> {
 
 
 fn main() {
-    let program: Vec<intcode::Mem> = slurp_stdin()
-        .trim()
-        .split(",")
-        .map(|s| s.parse::<intcode::Mem>().unwrap())
-        .collect();
+    let program = parse_intcode_program(&slurp_stdin());
 
     {
         let robot = RefCell::new(Robot::new());

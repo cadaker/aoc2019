@@ -1,4 +1,4 @@
-use aoc2019::io::slurp_stdin;
+use aoc2019::io::{slurp_stdin, parse_intcode_program};
 use aoc2019::intcode;
 use aoc2019::intcode::{Mem,Ptr};
 use aoc2019::permutation::Permutations;
@@ -160,11 +160,7 @@ fn best_feedback_signal(program: Vec<Mem>) -> Mem {
 }
 
 fn main() {
-    let program: Vec<Mem> = slurp_stdin()
-        .trim()
-        .split(",")
-        .map(|s| s.parse().unwrap())
-        .collect();
+    let program = parse_intcode_program(&slurp_stdin());
 
     println!("{}", best_signal(program.clone()));
     println!("{}", best_feedback_signal(program.clone()));

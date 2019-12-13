@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use aoc2019::intcode;
+use aoc2019::io::parse_intcode_program;
 use std::fs::File;
 use std::io::{self, Read, BufRead};
 use std::cell::RefCell;
@@ -64,13 +65,6 @@ impl intcode::Output for Parser<'_> {
             }
         }
     }
-}
-
-fn parse_intcode_program(s: String) -> Vec<intcode::Mem> {
-    s.trim()
-        .split(",")
-        .map(|s| s.parse::<intcode::Mem>().unwrap())
-        .collect()
 }
 
 fn read_game_board(program: Vec<intcode::Mem>) -> GameBoard {
@@ -177,7 +171,7 @@ fn main() {
         .unwrap()
         .read_to_string(&mut program_input)
         .unwrap();
-    let program = parse_intcode_program(program_input);
+    let program = parse_intcode_program(&program_input);
     let board = read_game_board(program.clone());
 
     println!("{}",
