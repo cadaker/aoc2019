@@ -37,6 +37,13 @@ struct Parser<'a> {
     x: Option<i64>,
     y: Option<i64>,
     board: &'a RefCell<GameBoard>,
+    score: Option<i64>,
+}
+
+impl<'a> Parser<'a> {
+    fn new(board: &'a RefCell<GameBoard>) -> Self {
+        Parser { x: None, y: None, board, score: None }
+    }
 }
 
 impl intcode::Output for Parser<'_> {
@@ -50,8 +57,8 @@ impl intcode::Output for Parser<'_> {
             let y = self.y.unwrap();
             self.x = None;
             self.y = None;
-            if x == -1 {
-                println!("Score: {}", val);
+            if x == -1 && y == 0 {
+                self.score = Some(val);
             } else {
                 self.board.borrow_mut().insert((x, y), GameElement::try_from(val).unwrap());
             }
@@ -69,7 +76,7 @@ fn parse_intcode_program(s: String) -> Vec<intcode::Mem> {
 fn read_game_board(program: Vec<intcode::Mem>) -> GameBoard {
     let board = RefCell::new(GameBoard::new());
     {
-        let mut parser = Parser { x: None, y: None, board: &board };
+        let mut parser = Parser::new(&board);
         intcode::run_program(program, &mut vec![], &mut parser).unwrap();
     }
     let copy = board.borrow().clone();
@@ -186,6 +193,7 @@ fn main() {
     let board = RefCell::new(GameBoard::new());
     // let mut game_input = GameInput { board: &board };
     let mut game_input = AiInput { board: &board };
-    let mut parser = Parser { x: None, y: None, board: &board};
+    let mut parser = Parser::new(&board);
     intcode::run_program(prog, &mut game_input, &mut parser).unwrap();
+    println!("{}", parser.score.unwrap());
 }
