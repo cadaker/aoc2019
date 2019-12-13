@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use aoc2019::intcode;
 use std::fs::File;
-use std::io::Read;
+use std::io::{self, Read, BufRead};
 use std::cell::RefCell;
 
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -50,7 +50,11 @@ impl intcode::Output for Parser<'_> {
             let y = self.y.unwrap();
             self.x = None;
             self.y = None;
-            self.board.borrow_mut().insert((x,y), GameElement::try_from(val).unwrap());
+            if x == -1 {
+                println!("Score: {}", val);
+            } else {
+                self.board.borrow_mut().insert((x, y), GameElement::try_from(val).unwrap());
+            }
         }
     }
 }
@@ -72,6 +76,57 @@ fn read_game_board(program: Vec<intcode::Mem>) -> GameBoard {
     copy
 }
 
+struct GameInput<'a> {
+    board: &'a RefCell<GameBoard>,
+}
+
+fn print_board(board: &GameBoard) {
+    let mut y = 0i64;
+    while board.get(&(0i64,y)).is_some() {
+        let mut x = 0i64;
+        loop {
+            use GameElement::*;
+            match board.get(&(x,y)) {
+                Some(Empty) => print!(" "),
+                Some(Wall) => print!("#"),
+                Some(Block) => print!("."),
+                Some(HorizontalPaddle) => print!("_"),
+                Some(Ball) => print!("o"),
+                None => break,
+            }
+            x += 1;
+        }
+        println!();
+        y += 1;
+    }
+}
+
+fn get_line() -> io::Result<String> {
+    let stdin = io::stdin();
+    let mut handle = stdin.lock();
+    let mut buf = String::new();
+
+    handle.read_line(&mut buf)?;
+    Ok(buf)
+}
+
+impl intcode::Input for GameInput<'_> {
+    fn next_input(&mut self) -> Result<i64, String> {
+        print_board(&self.board.borrow());
+
+        loop {
+            let input = get_line().or(Err(String::from("input failure")))?;
+
+            match input.get(0..1) {
+                Some("s") => return Ok(0),
+                Some("a") => return Ok(-1),
+                Some("d") => return Ok(1),
+                _ => print!("invalid input")
+            }
+        }
+    }
+}
+
 fn main() {
     let mut program_input = String::new();
     File::open("data/day13.in")
@@ -88,4 +143,11 @@ fn main() {
                      |&(_p, val)|
                          *val == GameElement::Block)
                  .count());
+
+    let mut prog = program;
+    prog[0] = 2;
+    let board = RefCell::new(GameBoard::new());
+    let mut game_input = GameInput { board: &board };
+    let mut parser = Parser { x: None, y: None, board: &board};
+    intcode::run_program(prog, &mut game_input, &mut parser).unwrap();
 }
