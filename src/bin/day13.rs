@@ -3,6 +3,7 @@ use std::convert::TryFrom;
 use aoc2019::intcode;
 use std::fs::File;
 use std::io::Read;
+use std::cell::RefCell;
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 enum GameElement {
@@ -32,13 +33,13 @@ impl TryFrom<intcode::Mem> for GameElement {
 type Point = (i64,i64);
 type GameBoard = HashMap<Point, GameElement>;
 
-struct Parser {
+struct Parser<'a> {
     x: Option<i64>,
     y: Option<i64>,
-    board: GameBoard,
+    board: &'a RefCell<GameBoard>,
 }
 
-impl intcode::Output for Parser {
+impl intcode::Output for Parser<'_> {
     fn next_output(&mut self, val: i64) {
         if self.x.is_none() {
             self.x = Some(val);
@@ -49,7 +50,7 @@ impl intcode::Output for Parser {
             let y = self.y.unwrap();
             self.x = None;
             self.y = None;
-            self.board.insert((x,y), GameElement::try_from(val).unwrap());
+            self.board.borrow_mut().insert((x,y), GameElement::try_from(val).unwrap());
         }
     }
 }
@@ -62,9 +63,13 @@ fn parse_intcode_program(s: String) -> Vec<intcode::Mem> {
 }
 
 fn read_game_board(program: Vec<intcode::Mem>) -> GameBoard {
-    let mut parser = Parser {x: None, y: None, board: GameBoard::new()};
-    intcode::run_program(program, &mut vec![], &mut parser).unwrap();
-    parser.board
+    let board = RefCell::new(GameBoard::new());
+    {
+        let mut parser = Parser { x: None, y: None, board: &board };
+        intcode::run_program(program, &mut vec![], &mut parser).unwrap();
+    }
+    let copy = board.borrow().clone();
+    copy
 }
 
 fn main() {
