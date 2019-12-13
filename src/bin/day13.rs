@@ -127,6 +127,43 @@ impl intcode::Input for GameInput<'_> {
     }
 }
 
+struct AiInput<'a> {
+    board: &'a RefCell<GameBoard>,
+}
+
+fn find_elem(board: &GameBoard, sought_elem: GameElement) -> Vec<Point> {
+    board
+        .iter()
+        .filter(|&(_p, elem)| *elem == sought_elem)
+        .map(|(p,_elem)| *p)
+        .collect()
+}
+
+fn find_single(board: &GameBoard, elem: GameElement) -> Option<Point> {
+    let elems = find_elem(board, elem);
+    elems.first().cloned()
+}
+
+impl intcode::Input for AiInput<'_> {
+    fn next_input(&mut self) -> Result<i64, String> {
+        print_board(&self.board.borrow());
+        std::thread::sleep(std::time::Duration::from_millis(1));
+
+        let ball = find_single(&self.board.borrow(), GameElement::Ball)
+            .ok_or(String::from("no ball"))?;
+        let paddle = find_single(&self.board.borrow(), GameElement::HorizontalPaddle)
+            .ok_or(String::from("no paddle"))?;
+
+        if paddle.0 > ball.0 {
+            Ok(-1)
+        } else if paddle.0 < ball.0 {
+            Ok(1)
+        } else {
+            Ok(0)
+        }
+    }
+}
+
 fn main() {
     let mut program_input = String::new();
     File::open("data/day13.in")
@@ -147,7 +184,8 @@ fn main() {
     let mut prog = program;
     prog[0] = 2;
     let board = RefCell::new(GameBoard::new());
-    let mut game_input = GameInput { board: &board };
+    // let mut game_input = GameInput { board: &board };
+    let mut game_input = AiInput { board: &board };
     let mut parser = Parser { x: None, y: None, board: &board};
     intcode::run_program(prog, &mut game_input, &mut parser).unwrap();
 }
