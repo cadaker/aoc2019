@@ -24,20 +24,13 @@ fn gcd(x: i32, y: i32) -> i32 {
     }
 }
 
-fn blocks(blocker: (i32,i32), blocked: (i32,i32)) -> bool {
-    let blocker_norm = gcd(blocker.0.abs(), blocker.1.abs());
-    let blocked_norm = gcd(blocked.0.abs(), blocked.1.abs());
-    blocker.0.abs() <= blocked.0.abs() &&
-        blocker.1.abs() <= blocked.1.abs() &&
-        blocker.0/blocker_norm == blocked.0/blocked_norm &&
-        blocker.1/blocker_norm == blocked.1/blocked_norm
-
-}
-
 fn blocked_by_any(rel_points: &[(i32,i32)], p: (i32,i32)) -> bool {
-    for blocker in rel_points {
-        if blocks(*blocker, p) && *blocker != p {
-            return true;
+    let d = gcd(p.0.abs(), p.1.abs());
+    for i in 1..d {
+        for &(x,y) in rel_points {
+            if x == p.0 * i / d && y == p.1 * i / d {
+                return true;
+            }
         }
     }
     false
@@ -133,17 +126,6 @@ mod tests {
     #[test]
     fn test_map() {
         assert_eq!(parse_map("#.#\n.#.\n"), vec![(0,0), (2,0), (1,1)]);
-    }
-
-    #[test]
-    fn test_blocks() {
-        assert!(blocks((1,2), (2,4)));
-        assert!(blocks((-1,2), (-2,4)));
-        assert!(blocks((1,-2), (2,-4)));
-        assert!(blocks((-1,-2), (-2,-4)));
-
-        assert!(!blocks((-1,2), (2,4)));
-        assert!(!blocks((-1,2), (2,-4)));
     }
 
     #[test]
