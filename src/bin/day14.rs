@@ -65,26 +65,31 @@ fn ore_needs(reactions: &Reactions, fuel_wanted: i64) -> i64 {
     }
 }
 
-fn fuel_available(reactions: &Reactions, ore: i64) -> i64 {
-    let mut upper = {
-        let mut fuel = 1;
-        while ore_needs(reactions, fuel) <= ore {
-            fuel *= 2;
-        }
-        fuel
-    };
-    let mut lower = 1;
+fn find_highest_true<F: Fn(i64) -> bool>(f: F) -> i64 {
+    // Find the highest x >= 1 where f(x) is true, for a monotonic f.
+    let mut upper = 1;
+    while f(upper) {
+        upper *= 2;
+    }
+    if upper == 1 {
+        return 0;
+    }
 
-    // invariant lower <= x < upper
+    let mut lower = 1;
+    // invariant: f(lower) == true, f(upper) == false
     while lower + 1 < upper {
         let mid = (lower + upper) / 2;
-        if ore_needs(&reactions, mid) <= ore {
+        if f(mid) {
             lower = mid;
         } else {
             upper = mid;
         }
     }
     lower
+}
+
+fn fuel_available(reactions: &Reactions, ore: i64) -> i64 {
+    find_highest_true(|fuel| ore_needs(&reactions, fuel) <= ore)
 }
 
 fn main() {
