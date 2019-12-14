@@ -27,10 +27,10 @@ fn ceil_div(dividend: i64, divisor: i64) -> i64 {
     (dividend + divisor - 1) / divisor
 }
 
-fn ore_needs(reactions: &Reactions) -> i64 {
+fn ore_needs(reactions: &Reactions, fuel_wanted: i64) -> i64 {
     let mut needed: HashMap<String, i64> = HashMap::new();
     let mut extra: HashMap<String, i64> = HashMap::new();
-    needed.insert(String::from("FUEL"), 1);
+    needed.insert(String::from("FUEL"), fuel_wanted);
     let mut ore_needed = 0i64;
 
     loop {
@@ -65,9 +65,32 @@ fn ore_needs(reactions: &Reactions) -> i64 {
     }
 }
 
+fn fuel_available(reactions: &Reactions, ore: i64) -> i64 {
+    let mut upper = {
+        let mut fuel = 1;
+        while ore_needs(reactions, fuel) <= ore {
+            fuel *= 2;
+        }
+        fuel
+    };
+    let mut lower = 1;
+
+    // invariant lower <= x < upper
+    while lower + 1 < upper {
+        let mid = (lower + upper) / 2;
+        if ore_needs(&reactions, mid) <= ore {
+            lower = mid;
+        } else {
+            upper = mid;
+        }
+    }
+    lower
+}
+
 fn main() {
     let reactions = parse_input(&slurp_stdin());
-    println!("{}", ore_needs(&reactions));
+    println!("{}", ore_needs(&reactions, 1));
+    println!("{}", fuel_available(&reactions, 1000000000000));
 }
 
 #[cfg(test)]
@@ -81,7 +104,7 @@ mod tests {
 7 A, 1 C => 1 D
 7 A, 1 D => 1 E
 7 A, 1 E => 1 FUEL";
-        assert_eq!(ore_needs(&parse_input(ex)), 31);
+        assert_eq!(ore_needs(&parse_input(ex), 1), 31);
     }
 
     #[test]
@@ -93,7 +116,7 @@ mod tests {
 5 B, 7 C => 1 BC
 4 C, 1 A => 1 CA
 2 AB, 3 BC, 4 CA => 1 FUEL";
-        assert_eq!(ore_needs(&parse_input(ex)), 165);
+        assert_eq!(ore_needs(&parse_input(ex), 1), 165);
     }
 
     #[test]
@@ -107,7 +130,7 @@ mod tests {
 7 DCFZ, 7 PSHF => 2 XJWVT
 165 ORE => 2 GPVTF
 3 DCFZ, 7 NZVS, 5 HKGWZ, 10 PSHF => 8 KHKGT";
-        assert_eq!(ore_needs(&parse_input(ex)), 13312);
+        assert_eq!(ore_needs(&parse_input(ex), 1), 13312);
     }
 
     #[test]
@@ -124,7 +147,7 @@ mod tests {
 1 NVRVD => 8 CXFTF
 1 VJHF, 6 MNCFX => 4 RFSQX
 176 ORE => 6 VJHF";
-        assert_eq!(ore_needs(&parse_input(ex)), 180697);
+        assert_eq!(ore_needs(&parse_input(ex), 1), 180697);
     }
 
     #[test]
@@ -146,6 +169,6 @@ mod tests {
 121 ORE => 7 VRPVC
 7 XCVML => 6 RJRHP
 5 BHXH, 4 VRPVC => 5 LTCX";
-        assert_eq!(ore_needs(&parse_input(ex)), 2210736);
+        assert_eq!(ore_needs(&parse_input(ex), 1), 2210736);
     }
 }
