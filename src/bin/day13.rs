@@ -4,7 +4,7 @@ use aoc2019::intcode;
 use aoc2019::io::parse_intcode_program;
 use std::fs::File;
 use std::io::{self, Read, BufRead};
-use std::cell::RefCell;
+use aoc2019::intcode::Output;
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 enum GameElement {
@@ -34,20 +34,20 @@ impl TryFrom<intcode::Mem> for GameElement {
 type Point = (i64,i64);
 type GameBoard = HashMap<Point, GameElement>;
 
-struct Parser<'a> {
+struct Parser {
     x: Option<i64>,
     y: Option<i64>,
-    board: &'a RefCell<GameBoard>,
+    board: GameBoard,
     score: Option<i64>,
 }
 
-impl<'a> Parser<'a> {
-    fn new(board: &'a RefCell<GameBoard>) -> Self {
-        Parser { x: None, y: None, board, score: None }
+impl Parser {
+    fn new() -> Self {
+        Parser { x: None, y: None, board: GameBoard::new(), score: None }
     }
 }
 
-impl intcode::Output for Parser<'_> {
+impl intcode::Output for Parser {
     fn next_output(&mut self, val: i64) {
         if self.x.is_none() {
             self.x = Some(val);
@@ -61,24 +61,20 @@ impl intcode::Output for Parser<'_> {
             if x == -1 && y == 0 {
                 self.score = Some(val);
             } else {
-                self.board.borrow_mut().insert((x, y), GameElement::try_from(val).unwrap());
+                self.board.insert((x, y), GameElement::try_from(val).unwrap());
             }
         }
     }
 }
 
 fn read_game_board(program: Vec<intcode::Mem>) -> GameBoard {
-    let board = RefCell::new(GameBoard::new());
-    {
-        let mut parser = Parser::new(&board);
-        intcode::run_program_splitio(program, &mut vec![], &mut parser).unwrap();
-    }
-    let copy = board.borrow().clone();
-    copy
+    let mut parser = Parser::new();
+    intcode::run_program_splitio(program, &mut vec![], &mut parser).unwrap();
+    parser.board
 }
 
-struct GameInput<'a> {
-    board: &'a RefCell<GameBoard>,
+struct GameInput {
+    parser: Parser,
 }
 
 fn print_board(board: &GameBoard) {
@@ -111,9 +107,9 @@ fn get_line() -> io::Result<String> {
     Ok(buf)
 }
 
-impl intcode::Input for GameInput<'_> {
+impl intcode::InputOutput for GameInput {
     fn next_input(&mut self) -> Result<i64, String> {
-        print_board(&self.board.borrow());
+        print_board(&self.parser.board);
 
         loop {
             let input = get_line().or(Err(String::from("input failure")))?;
@@ -126,10 +122,14 @@ impl intcode::Input for GameInput<'_> {
             }
         }
     }
+
+    fn next_output(&mut self, x: i64) {
+        self.parser.next_output(x)
+    }
 }
 
-struct AiInput<'a> {
-    board: &'a RefCell<GameBoard>,
+struct AiInput {
+    parser: Parser,
 }
 
 fn find_elem(board: &GameBoard, sought_elem: GameElement) -> Vec<Point> {
@@ -145,14 +145,14 @@ fn find_single(board: &GameBoard, elem: GameElement) -> Option<Point> {
     elems.first().cloned()
 }
 
-impl intcode::Input for AiInput<'_> {
+impl intcode::InputOutput for AiInput {
     fn next_input(&mut self) -> Result<i64, String> {
-        print_board(&self.board.borrow());
+        print_board(&self.parser.board);
         std::thread::sleep(std::time::Duration::from_millis(1));
 
-        let ball = find_single(&self.board.borrow(), GameElement::Ball)
+        let ball = find_single(&self.parser.board, GameElement::Ball)
             .ok_or(String::from("no ball"))?;
-        let paddle = find_single(&self.board.borrow(), GameElement::HorizontalPaddle)
+        let paddle = find_single(&self.parser.board, GameElement::HorizontalPaddle)
             .ok_or(String::from("no paddle"))?;
 
         if paddle.0 > ball.0 {
@@ -162,6 +162,10 @@ impl intcode::Input for AiInput<'_> {
         } else {
             Ok(0)
         }
+    }
+
+    fn next_output(&mut self, x: i64) {
+        self.parser.next_output(x)
     }
 }
 
@@ -184,10 +188,8 @@ fn main() {
 
     let mut prog = program;
     prog[0] = 2;
-    let board = RefCell::new(GameBoard::new());
     // let mut game_input = GameInput { board: &board };
-    let mut game_input = AiInput { board: &board };
-    let mut parser = Parser::new(&board);
-    intcode::run_program_splitio(prog, &mut game_input, &mut parser).unwrap();
-    println!("{}", parser.score.unwrap());
+    let mut game_input = AiInput { parser: Parser::new() };
+    intcode::run_program(prog, &mut game_input).unwrap();
+    println!("{}", game_input.parser.score.unwrap());
 }
