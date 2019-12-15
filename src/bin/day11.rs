@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use aoc2019::io::{slurp_stdin, parse_intcode_program};
 use aoc2019::intcode;
-use std::cell::RefCell;
 
 #[derive(Clone,Copy,PartialEq,Eq)]
 enum Color {
@@ -62,27 +61,20 @@ impl Robot {
     }
 }
 
-struct RobotInput<'a> {
-    robot: &'a RefCell<Robot>,
-}
-
-struct RobotOutput<'a> {
+struct RobotIO {
+    robot: Robot,
     paint_instruction: Option<Color>,
-    robot: &'a RefCell<Robot>,
 }
 
-impl intcode::Input for RobotInput<'_> {
+impl intcode::InputOutput for RobotIO {
     fn next_input(&mut self) -> Result<i64, String> {
-        let robot = self.robot.borrow();
-        let pos = (robot.x, robot.y);
-        match *robot.colors.get(&pos).unwrap_or(&Color::Black) {
+        let pos = (self.robot.x, self.robot.y);
+        match self.robot.colors.get(&pos).unwrap_or(&Color::Black) {
             Color:: Black => Ok(BLACK),
             Color::White => Ok(WHITE),
         }
     }
-}
 
-impl intcode::Output for RobotOutput<'_> {
     fn next_output(&mut self, x: i64) {
         if self.paint_instruction.is_none() {
             self.paint_instruction = match x {
@@ -97,37 +89,26 @@ impl intcode::Output for RobotOutput<'_> {
             RIGHT => Turn::Right,
             _ => unimplemented!(),
         };
-        self.robot.borrow_mut().trigger(self.paint_instruction.unwrap(), move_instruction);
+        self.robot.trigger(self.paint_instruction.unwrap(), move_instruction);
         self.paint_instruction = None;
     }
 }
-
 
 fn main() {
     let program = parse_intcode_program(&slurp_stdin());
 
     {
-        let robot = RefCell::new(Robot::new());
-        let mut input = RobotInput { robot: &robot };
-        let mut output = RobotOutput {
-            paint_instruction: None,
-            robot: &robot,
-        };
-        intcode::run_program_splitio(program.clone(), &mut input, &mut output).unwrap();
+        let mut robot_io = RobotIO { robot: Robot::new(), paint_instruction: None };
+        intcode::run_program(program.clone(), &mut robot_io).unwrap();
 
-        println!("{}", robot.borrow().colors.len());
+        println!("{}", robot_io.robot.colors.len());
     }
     {
-        let robot = RefCell::new(Robot::new());
-        robot.borrow_mut().colors.insert((0,0), Color::White);
-        let mut input = RobotInput { robot: &robot };
-        let mut output = RobotOutput {
-            paint_instruction: None,
-            robot: &robot,
-        };
-        intcode::run_program_splitio(program.clone(), &mut input, &mut output).unwrap();
+        let mut robot_io = RobotIO { robot: Robot::new(), paint_instruction: None };
+        robot_io.robot.colors.insert((0,0), Color::White);
+        intcode::run_program(program.clone(), &mut robot_io).unwrap();
 
-        let points: Vec<(i32,i32)> = robot.borrow().colors
+        let points: Vec<(i32,i32)> = robot_io.robot.colors
             .iter()
             .filter(|&(_, color)| *color == Color::White )
             .map(|(p,_)| *p)
@@ -138,7 +119,7 @@ fn main() {
         let maxy = points.iter().map(|p| p.1).max().unwrap();
         for y in (miny..=maxy).rev() {
             for x in minx..=maxx {
-                let pixel = robot.borrow().colors.get(&(x,y)).cloned();
+                let pixel = robot_io.robot.colors.get(&(x,y)).cloned();
                 if pixel == Some(Color::White) {
                     print!("#");
                 } else {
