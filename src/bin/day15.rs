@@ -218,26 +218,55 @@ fn print_map(map: &Map, robot_pos: Point) {
     }
 }
 
+fn fill_with_oxygen(map: &Map, source: Point) -> usize {
+    struct Node {
+        pos: Point,
+        time: usize,
+    }
+
+    let mut highest_time_seen = 0;
+    let mut queue = std::collections::VecDeque::<Node>::new();
+    let mut visited = std::collections::HashSet::<Point>::new();
+    queue.push_back(Node { pos: source, time: 0 });
+    visited.insert((0,0));
+
+    while !queue.is_empty() {
+        let next = queue.pop_front().unwrap();
+        highest_time_seen = std::cmp::max(highest_time_seen, next.time);
+
+        assert_eq!(lookup(map, next.pos), Terrain::Open);
+        for step in &ALL_DIRS {
+            let n = step_to(next.pos, *step);
+
+            if lookup(&map, n) == Terrain::Open && !visited.contains(&n) {
+                queue.push_back(Node { pos: n, time: next.time + 1 });
+                visited.insert(n);
+            }
+        }
+    }
+    highest_time_seen
+}
+
 fn main() {
     let program = parse_intcode_program(&slurp_stdin());
 
-    {
-        let mut mem = intcode::Memory::new(program.clone());
-        let mut ip = 0;
-        let mut rel_base = 0;
-        let mut controller = RobotController::new();
-        while !controller.map_explored {
-            match intcode::step_program_io(&mut mem, ip, rel_base, &mut controller).unwrap() {
-                intcode::StepResult::Continue(ptr, base) => {
-                    ip = ptr;
-                    rel_base = base;
-                },
-                intcode::StepResult::End => break,
-            }
+    let mut mem = intcode::Memory::new(program);
+    let mut ip = 0;
+    let mut rel_base = 0;
+    let mut controller = RobotController::new();
+    while !controller.map_explored {
+        match intcode::step_program_io(&mut mem, ip, rel_base, &mut controller).unwrap() {
+            intcode::StepResult::Continue(ptr, base) => {
+                ip = ptr;
+                rel_base = base;
+            },
+            intcode::StepResult::End => break,
         }
-        assert!(controller.map_explored);
-        assert!(controller.oxygen_pos.is_some());
-        let path = find_path_to(&controller.map, (0,0), controller.oxygen_pos.unwrap());
-        println!("{}", path.unwrap().len());
     }
+    assert!(controller.map_explored);
+    assert!(controller.oxygen_pos.is_some());
+    let path = find_path_to(&controller.map, (0,0), controller.oxygen_pos.unwrap());
+    println!("{}", path.unwrap().len());
+
+    println!("{}", fill_with_oxygen(&controller.map, controller.oxygen_pos.unwrap()));
 }
