@@ -255,7 +255,7 @@ fn main() {
     let mut rel_base = 0;
     let mut controller = RobotController::new();
     while !controller.map_explored {
-        match intcode::step_program_io(&mut mem, ip, rel_base, &mut controller).unwrap() {
+        match intcode::step_program(&mut mem, ip, rel_base, &mut controller).unwrap() {
             intcode::StepResult::Continue(ptr, base) => {
                 ip = ptr;
                 rel_base = base;

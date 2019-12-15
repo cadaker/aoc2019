@@ -184,17 +184,17 @@ pub enum StepResult {
     End,
 }
 
-pub fn step_program(
+pub fn step_program_splitio(
     mem: &mut Memory,
     ip: Ptr,
     rel_base: Mem,
     input: &mut dyn Input,
     output: &mut dyn Output) -> Result<StepResult, String>
 {
-    step_program_io(mem, ip, rel_base, &mut InputOutputWrapper{input, output})
+    step_program(mem, ip, rel_base, &mut InputOutputWrapper{input, output})
 }
 
-pub fn step_program_io(
+pub fn step_program(
     mem: &mut Memory,
     ip: Ptr,
     rel_base: Mem,
@@ -260,15 +260,15 @@ pub fn step_program_io(
     return Ok(StepResult::Continue(new_ip, new_rel_base))
 }
 
-pub fn run_program(
+pub fn run_program_splitio(
     memdata: Vec<Mem>,
     input: &mut dyn Input,
     output: &mut dyn Output) -> Result<Vec<Mem>, String>
 {
-    run_program_io(memdata, &mut InputOutputWrapper{input, output})
+    run_program(memdata, &mut InputOutputWrapper{input, output})
 }
 
-pub fn run_program_io(
+pub fn run_program(
     memdata: Vec<Mem>,
     io: &mut dyn InputOutput) -> Result<Vec<Mem>, String>
 {
@@ -276,7 +276,7 @@ pub fn run_program_io(
     let mut ip: Ptr = 0;
     let mut rel_base: Mem = 0;
     loop {
-        let (new_ip,new_rel_base) = match step_program_io(&mut mem, ip, rel_base, io)? {
+        let (new_ip,new_rel_base) = match step_program(&mut mem, ip, rel_base, io)? {
             StepResult::Continue(new_ip, new_rel_base) => (new_ip, new_rel_base),
             StepResult::End => return Ok(mem.memory)
         };

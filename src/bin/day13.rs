@@ -71,7 +71,7 @@ fn read_game_board(program: Vec<intcode::Mem>) -> GameBoard {
     let board = RefCell::new(GameBoard::new());
     {
         let mut parser = Parser::new(&board);
-        intcode::run_program(program, &mut vec![], &mut parser).unwrap();
+        intcode::run_program_splitio(program, &mut vec![], &mut parser).unwrap();
     }
     let copy = board.borrow().clone();
     copy
@@ -188,6 +188,6 @@ fn main() {
     // let mut game_input = GameInput { board: &board };
     let mut game_input = AiInput { board: &board };
     let mut parser = Parser::new(&board);
-    intcode::run_program(prog, &mut game_input, &mut parser).unwrap();
+    intcode::run_program_splitio(prog, &mut game_input, &mut parser).unwrap();
     println!("{}", parser.score.unwrap());
 }

@@ -5,7 +5,7 @@ fn simulate_input(mut mem: Vec<intcode::Mem>, noun: intcode::Mem, verb: intcode:
     mem[1] = noun;
     mem[2] = verb;
 
-    let out_mem = intcode::run_program(mem, &mut vec![], &mut vec![]).unwrap();
+    let out_mem = intcode::run_program_splitio(mem, &mut vec![], &mut vec![]).unwrap();
     *out_mem.first().unwrap()
 }
 

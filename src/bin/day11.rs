@@ -113,7 +113,7 @@ fn main() {
             paint_instruction: None,
             robot: &robot,
         };
-        intcode::run_program(program.clone(), &mut input, &mut output).unwrap();
+        intcode::run_program_splitio(program.clone(), &mut input, &mut output).unwrap();
 
         println!("{}", robot.borrow().colors.len());
     }
@@ -125,7 +125,7 @@ fn main() {
             paint_instruction: None,
             robot: &robot,
         };
-        intcode::run_program(program.clone(), &mut input, &mut output).unwrap();
+        intcode::run_program_splitio(program.clone(), &mut input, &mut output).unwrap();
 
         let points: Vec<(i32,i32)> = robot.borrow().colors
             .iter()

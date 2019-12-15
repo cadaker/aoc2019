@@ -6,13 +6,13 @@ fn main() {
 
     {
         let mut out = vec![];
-        intcode::run_program(program.clone(), &mut vec![1], &mut out).unwrap();
+        intcode::run_program_splitio(program.clone(), &mut vec![1], &mut out).unwrap();
         assert_eq!(out.len(), 1);
         println!("{}", out[0]);
     }
     {
         let mut out = vec![];
-        intcode::run_program(program.clone(), &mut vec![2], &mut out).unwrap();
+        intcode::run_program_splitio(program.clone(), &mut vec![2], &mut out).unwrap();
         assert_eq!(out.len(), 1);
         println!("{}", out[0]);
     }

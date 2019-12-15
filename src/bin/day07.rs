@@ -15,7 +15,7 @@ fn run_phase(program: Vec<Mem>, phases: Vec<Mem>) -> Result<Mem, String> {
         let mut ip = 0;
         let mut rel_base = 0;
         while output.is_empty() {
-            match intcode::step_program(&mut machine, ip, rel_base, &mut input, &mut output)? {
+            match intcode::step_program_splitio(&mut machine, ip, rel_base, &mut input, &mut output)? {
                 intcode::StepResult::Continue(new_ip, new_rel_base) => { ip = new_ip; rel_base = new_rel_base },
                 intcode::StepResult::End => return Err(String::from("premature end of program")),
             };
@@ -128,7 +128,7 @@ fn run_feedback(program: Vec<Mem>, phases: Vec<Mem>) -> Result<Mem,String> {
             !(intcode::needs_input(&cur_context.memory, cur_context.ip)? &&
                 cur_context.input_queue.is_empty()) {
 
-            match intcode::step_program(
+            match intcode::step_program_splitio(
                 &mut cur_context.memory,
                 cur_context.ip,
                 cur_context.rel_base,
