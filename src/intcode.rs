@@ -59,12 +59,32 @@ enum Op {
     End,
 }
 
+pub trait InputOutput {
+    fn next_input(&mut self) -> Result<Mem, String>;
+    fn next_output(&mut self, x: Mem);
+}
+
 pub trait Input {
     fn next_input(&mut self) -> Result<Mem, String>;
 }
 
 pub trait Output {
     fn next_output(&mut self, x: Mem);
+}
+
+struct InputOutputWrapper<'a> {
+    input: &'a mut dyn Input,
+    output: &'a mut dyn Output,
+}
+
+impl<'a> InputOutput for InputOutputWrapper<'a> {
+    fn next_input(&mut self) -> Result<i64, String> {
+        self.input.next_input()
+    }
+
+    fn next_output(&mut self, x: i64) {
+        self.output.next_output(x)
+    }
 }
 
 impl Input for Vec<Mem> {
@@ -171,6 +191,15 @@ pub fn step_program(
     input: &mut dyn Input,
     output: &mut dyn Output) -> Result<StepResult, String>
 {
+    step_program_io(mem, ip, rel_base, &mut InputOutputWrapper{input, output})
+}
+
+pub fn step_program_io(
+    mem: &mut Memory,
+    ip: Ptr,
+    rel_base: Mem,
+    io: &mut dyn InputOutput) -> Result<StepResult, String>
+{
     let op = decode_instr(&mem, ip)?;
     let (new_ip, new_rel_base) = match op {
         Op::Add(lhs, rhs, dest) => {
@@ -188,11 +217,11 @@ pub fn step_program(
             (ip+4, rel_base)
         },
         Op::In(p) => {
-            mem.write_param(&p, input.next_input()?, rel_base)?;
+            mem.write_param(&p, io.next_input()?, rel_base)?;
             (ip+2, rel_base)
         },
         Op::Out(p) => {
-            output.next_output(mem.read_param(&p, rel_base));
+            io.next_output(mem.read_param(&p, rel_base));
             (ip+2, rel_base)
         },
         Op::JumpIfTrue(expr, dest) => {
@@ -236,11 +265,18 @@ pub fn run_program(
     input: &mut dyn Input,
     output: &mut dyn Output) -> Result<Vec<Mem>, String>
 {
+    run_program_io(memdata, &mut InputOutputWrapper{input, output})
+}
+
+pub fn run_program_io(
+    memdata: Vec<Mem>,
+    io: &mut dyn InputOutput) -> Result<Vec<Mem>, String>
+{
     let mut mem = Memory { memory: memdata };
     let mut ip: Ptr = 0;
     let mut rel_base: Mem = 0;
     loop {
-        let (new_ip,new_rel_base) = match step_program(&mut mem, ip, rel_base, input, output)? {
+        let (new_ip,new_rel_base) = match step_program_io(&mut mem, ip, rel_base, io)? {
             StepResult::Continue(new_ip, new_rel_base) => (new_ip, new_rel_base),
             StepResult::End => return Ok(mem.memory)
         };
