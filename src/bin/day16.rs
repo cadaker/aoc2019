@@ -140,13 +140,6 @@ mod tests {
     }
 
     #[test]
-    fn test_pattern() {
-        assert_eq!(pattern_base(0), vec![0, 1, 0, -1]);
-        assert_eq!(pattern_base(1), vec![0, 0, 1, 1, 0, 0, -1, -1]);
-        assert_eq!(pattern_base(2), vec![0, 0, 0, 1, 1, 1, 0, 0, 0, -1, -1, -1]);
-    }
-
-    #[test]
     fn test_integral_vector() {
         let iv = IntegralVector::new(&vec![1, 2, 3, 4, 5]);
         assert_eq!(iv.get_sum(0, 1), 1);
