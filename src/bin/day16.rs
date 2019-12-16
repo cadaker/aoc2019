@@ -1,4 +1,5 @@
 use aoc2019::io::slurp_stdin;
+use std::io::Write;
 
 fn parse_input(s: &String) -> Vec<i32> {
     s.trim()
@@ -10,17 +11,6 @@ fn parse_input(s: &String) -> Vec<i32> {
         .collect()
 }
 
-fn pattern_base(pos: usize) -> Vec<i32> {
-    let mut ret = Vec::new();
-    for x in &[0, 1, 0, -1] {
-        for _ in 0..pos+1 {
-            ret.push(*x);
-        }
-    }
-    assert_eq!(ret.len(), (pos + 1)*4);
-    ret
-}
-
 fn truncate(x: i32) -> i32 {
     if x > 0 {
         x % 10
@@ -29,44 +19,94 @@ fn truncate(x: i32) -> i32 {
     }
 }
 
-struct Pattern {
-    base: Vec<i32>,
-    pos: usize,
+struct IntegralVector {
+    v: Vec<i32>,
 }
 
-impl Pattern {
-    fn new(pos: usize) -> Self {
-        Pattern { base: pattern_base(pos), pos: 1 }
+impl IntegralVector {
+    fn new(xs: &Vec<i32>) -> Self {
+        let mut v = Vec::new();
+        let mut sum = 0;
+        v.push(0);
+        for x in xs.iter() {
+            sum += *x;
+            v.push(sum);
+        }
+        IntegralVector { v }
     }
-}
 
-impl Iterator for Pattern {
-    type Item = i32;
+    fn get_sum(&self, first: usize, len: usize) -> i32 {
+        fn index(v: &Vec<i32>, ix: usize) -> usize {
+            if ix < v.len() {
+                ix
+            } else {
+                v.len() - 1
+            }
+        }
 
-    fn next(&mut self) -> Option<Self::Item> {
-        let ret = self.base[self.pos];
-        self.pos = (self.pos + 1) % self.base.len();
-        Some(ret)
+        let high_ix = index(&self.v, first + len);
+        let low_ix = index(&self.v, first);
+        return self.v[high_ix] - self.v[low_ix];
     }
 }
 
 fn fft(xs: &Vec<i32>) -> Vec<i32> {
+    let iv = IntegralVector::new(xs);
     let mut ret = Vec::new();
-    for pos in 0..xs.len() {
-        let pattern = Pattern::new(pos);
-        let n = xs.iter().cloned().zip(pattern)
-            .map(|(x,p)| p * x)
-            .sum();
-        ret.push(truncate(n));
+
+    for len in 1..=xs.len() {
+        let mut acc = 0;
+        let mut pos = len - 1;
+        while pos < xs.len() {
+            acc += iv.get_sum(pos, len);
+            acc -= iv.get_sum(pos + 2*len, len);
+            pos += 4 * len;
+        }
+        ret.push(truncate(acc));
     }
     ret
 }
 
-fn repeat_fft(mut x: Vec<i32>, n: usize) -> Vec<i32> {
-    for _ in 0..n {
+fn do_repeat_fft(mut x: Vec<i32>, n: usize, print_progress: bool) -> Vec<i32> {
+    for i in 0..n {
         x = fft(&x);
+        if print_progress {
+            print!("{}", {
+                if i % 10 == 9 {
+                    "0"
+                } else {
+                    "."
+                }});
+            std::io::stdout().flush().unwrap();
+        }
+    }
+    if print_progress {
+        println!();
     }
     x
+}
+
+fn repeat_fft(x: Vec<i32>, n: usize) -> Vec<i32> {
+    do_repeat_fft(x, n, false)
+}
+
+fn expand(xs: &Vec<i32>) -> Vec<i32> {
+    let mut ret = Vec::new();
+    const N: usize = 10000;
+    ret.reserve(xs.len() * N);
+    for _ in 0..N {
+        ret.extend_from_slice(&xs);
+    }
+    ret
+}
+
+fn offset(xs: &Vec<i32>) -> usize {
+    let mut ret = 0;
+    for d in &xs[0..7] {
+        assert!(0 <= *d && *d <= 9);
+        ret = ret * 10 + (*d as usize);
+    }
+    ret
 }
 
 fn main() {
@@ -75,6 +115,14 @@ fn main() {
     let x = repeat_fft(signal.clone(), 100);
     for d in &x[0..8] {
         print!("{}", d);
+    }
+    println!();
+
+    let ex_signal = expand(&signal);
+    let n = offset(&ex_signal);
+    let ex_fft = do_repeat_fft(ex_signal, 100, true);
+    for d in &ex_fft[n..n+8] {
+        print!("{}", *d);
     }
     println!();
 }
@@ -96,6 +144,17 @@ mod tests {
         assert_eq!(pattern_base(0), vec![0, 1, 0, -1]);
         assert_eq!(pattern_base(1), vec![0, 0, 1, 1, 0, 0, -1, -1]);
         assert_eq!(pattern_base(2), vec![0, 0, 0, 1, 1, 1, 0, 0, 0, -1, -1, -1]);
+    }
+
+    #[test]
+    fn test_integral_vector() {
+        let iv = IntegralVector::new(&vec![1, 2, 3, 4, 5]);
+        assert_eq!(iv.get_sum(0, 1), 1);
+        assert_eq!(iv.get_sum(0, 2), 3);
+        assert_eq!(iv.get_sum(0, 7), 15);
+        assert_eq!(iv.get_sum(1, 1), 2);
+        assert_eq!(iv.get_sum(1, 3), 9);
+        assert_eq!(iv.get_sum(19, 26), 0);
     }
 
     #[test]
