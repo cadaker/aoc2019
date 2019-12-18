@@ -45,6 +45,45 @@ impl<T: Ord + Eq + Clone + Hash, PrioT: Ord + Eq + Clone> Prio<T, PrioT> {
     }
 }
 
+
+pub trait Dijkstra {
+    type Node;
+
+    fn reachable(&mut self, node: &Self::Node) -> Vec<(Self::Node, usize)>;
+
+    fn target(&mut self, node: &Self::Node) -> bool;
+}
+
+pub fn dijkstra<Handler: Dijkstra>(handler: &mut Handler, start_node: Handler::Node)
+                                   -> Option<(Handler::Node, usize)>
+    where Handler::Node: Ord + Eq + std::hash::Hash + Clone
+{
+    let mut prio = Prio::<Handler::Node, usize>::new();
+    let mut finished = std::collections::HashSet::<Handler::Node>::new();
+
+    prio.update(start_node, 0);
+
+    while !prio.is_empty() {
+        let (node, dist) = prio.pop().unwrap();
+        finished.insert(node.clone());
+
+        if handler.target(&node) {
+            return Some((node, dist))
+        }
+
+        for (n, extra_dist) in handler.reachable(&node) {
+            let existing_prio = prio.prio_for(&n);
+            if !finished.contains(&n) &&
+                (existing_prio.is_none() || dist + extra_dist < existing_prio.unwrap())
+            {
+                prio.update(n, dist + extra_dist);
+            }
+        }
+    }
+    None
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;

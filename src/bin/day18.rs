@@ -173,34 +173,34 @@ fn reachable(map: &Map, held_keys: &KeySet, start_pos: Point) -> Vec<(Point, usi
     ret
 }
 
-fn search(map: &Map, start_pos: Point, all_keys: &KeySet) -> Option<usize> {
+struct SimpleSearch<'a> {
+    map: &'a Map,
+    all_keys: KeySet,
+}
+
+impl aoc2019::dijkstra::Dijkstra for SimpleSearch<'_> {
     type Node = (Point, KeySet);
 
-    let mut prio = aoc2019::prio::Prio::<Node, usize>::new();
-    let mut finished = std::collections::HashSet::<Node>::new();
-
-    prio.update((start_pos, KeySet::new()), 0);
-
-    while !prio.is_empty() {
-        let ((pos, held_keys), dist) = prio.pop().unwrap();
-        //println!("visiting {}, {} (dist {}) with keys {:b}", pos.0, pos.1, dist, held_keys.keys);
-        finished.insert((pos, held_keys));
-        if held_keys == *all_keys {
-            return Some(dist);
-        }
-
-        for (n, extra_dist) in reachable(map, &held_keys, pos) {
-            let (valid, new_held_keys) = can_move(map, &held_keys, n);
-            if valid &&
-                !finished.contains(&(n, new_held_keys)) &&
-                dist + extra_dist < prio.prio_for(&(n, new_held_keys)).unwrap_or(dist + extra_dist + 1)
-            {
-                prio.update((n, new_held_keys), dist + extra_dist);
+    fn reachable(&mut self, node: &Self::Node) -> Vec<(Self::Node, usize)> {
+        let mut ret = Vec::new();
+        for (p, dist) in reachable(self.map, &node.1, node.0) {
+            let (valid, held_keys) = can_move(self.map, &node.1, p);
+            if valid {
+                ret.push(((p, held_keys), dist));
             }
         }
+        ret
     }
 
-    None
+    fn target(&mut self, node: &Self::Node) -> bool {
+        node.1 == self.all_keys
+    }
+}
+
+fn search(map: &Map, start_pos: Point, all_keys: &KeySet) -> Option<usize> {
+    let mut handler = SimpleSearch { map, all_keys: *all_keys };
+    let ret = aoc2019::dijkstra::dijkstra(&mut handler, (start_pos, KeySet::new()));
+    ret.map(|(_, dist)| dist)
 }
 
 fn can_multi_move(map: &Map, held_keys: &KeySet, pos: (Point, Point, Point, Point)) -> (bool, KeySet) {
@@ -230,34 +230,34 @@ fn multi_reachable(map: &Map, held_keys: &KeySet, start_pos: (Point, Point, Poin
     ret
 }
 
-fn multi_search(map: &Map, start_pos: (Point, Point, Point, Point), all_keys: &KeySet) -> Option<usize> {
+struct MultiSearch<'a> {
+    map: &'a Map,
+    all_keys: KeySet,
+}
+
+impl aoc2019::dijkstra::Dijkstra for MultiSearch<'_> {
     type Node = ((Point, Point, Point, Point), KeySet);
 
-    let mut prio = aoc2019::prio::Prio::<Node, usize>::new();
-    let mut finished = std::collections::HashSet::<Node>::new();
-
-    prio.update((start_pos, KeySet::new()), 0);
-
-    while !prio.is_empty() {
-        let ((pos, held_keys), dist) = prio.pop().unwrap();
-        //println!("visiting {}, {} (dist {}) with keys {:b}", pos.0, pos.1, dist, held_keys.keys);
-        finished.insert((pos, held_keys));
-        if held_keys == *all_keys {
-            return Some(dist);
-        }
-
-        for (n, extra_dist) in multi_reachable(map, &held_keys, pos) {
-            let (valid, new_held_keys) = can_multi_move(map, &held_keys, n);
-            if valid &&
-                !finished.contains(&(n, new_held_keys)) &&
-                dist + extra_dist < prio.prio_for(&(n, new_held_keys)).unwrap_or(dist + extra_dist + 1)
-            {
-                prio.update((n, new_held_keys), dist + extra_dist);
+    fn reachable(&mut self, node: &Self::Node) -> Vec<(Self::Node, usize)> {
+        let mut ret = Vec::new();
+        for (pos, extra_dist) in multi_reachable(self.map, &node.1, node.0) {
+            let (valid, new_held_keys) = can_multi_move(self.map, &node.1, pos);
+            if valid {
+                ret.push(((pos, new_held_keys), extra_dist))
             }
         }
+        ret
     }
 
-    None
+    fn target(&mut self, node: &Self::Node) -> bool {
+        node.1 == self.all_keys
+    }
+}
+
+fn multi_search(map: &Map, start_pos: (Point, Point, Point, Point), all_keys: &KeySet) -> Option<usize> {
+    let mut handler = MultiSearch { map, all_keys: *all_keys };
+    let ret = aoc2019::dijkstra::dijkstra(&mut handler, (start_pos, KeySet::new()));
+    ret.map(|(_, dist)| dist)
 }
 
 fn make_multi_map(map: &Map) -> (Map, (Point, Point, Point, Point)) {
