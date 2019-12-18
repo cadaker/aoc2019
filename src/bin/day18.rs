@@ -121,10 +121,23 @@ fn neighbours(p: Point) -> Vec<Point> {
     vec![(p.0 - 1, p.1), (p.0 + 1, p.1), (p.0, p.1 - 1), (p.0, p.1 + 1)]
 }
 
+fn can_move(map: &Map, held_keys: &KeySet, pos: Point) -> (bool, KeySet) {
+    match map.get(pos.0, pos.1) {
+        Elem::Wall => (false, *held_keys),
+        Elem::Door(key) => (held_keys.has_key(key), *held_keys),
+        Elem::Key(key) => {
+            let mut new_held_keys = held_keys.clone();
+            new_held_keys.set_key(key);
+            (true, new_held_keys)
+        },
+        _ => (true, *held_keys),
+    }
+}
+
 fn search(map: &Map, start_pos: Point, all_keys: &KeySet) -> Option<usize> {
     type Node = (Point, KeySet);
 
-    let mut prio = aoc2019::prio::Prio::<(Point, KeySet), usize>::new();
+    let mut prio = aoc2019::prio::Prio::<Node, usize>::new();
     let mut finished = std::collections::HashSet::<Node>::new();
 
     prio.update((start_pos, KeySet::new()), 0);
@@ -138,23 +151,11 @@ fn search(map: &Map, start_pos: Point, all_keys: &KeySet) -> Option<usize> {
         }
 
         for n in neighbours(pos) {
-            let mut new_held_keys = held_keys;
-            match map.get(n.0, n.1) {
-                Elem::Wall => continue,
-                Elem::Door(key) => {
-                    if !held_keys.has_key(key) {
-                        continue;
-                    }
-                },
-                Elem::Key(key) => {
-                    new_held_keys.set_key(key);
-                },
-                _ => (),
-            };
-            if finished.contains(&(n, new_held_keys)) {
-                continue;
-            }
-            if dist + 1 < prio.prio_for(&(n, new_held_keys)).unwrap_or(dist + 2) {
+            let (valid, new_held_keys) = can_move(map, &held_keys, n);
+            if valid &&
+                !finished.contains(&(n, new_held_keys)) &&
+                dist + 1 < prio.prio_for(&(n, new_held_keys)).unwrap_or(dist + 2)
+            {
                 prio.update((n, new_held_keys), dist + 1);
             }
         }
