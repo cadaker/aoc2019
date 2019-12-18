@@ -138,6 +138,41 @@ fn can_move(map: &Map, held_keys: &KeySet, pos: Point) -> (bool, KeySet) {
     }
 }
 
+fn extract_key(map: &Map, pos: Point) -> Option<usize> {
+    match map.get(pos.0, pos.1) {
+        Elem::Key(key) => Some(key),
+        _ => None,
+    }
+}
+
+fn reachable(map: &Map, held_keys: &KeySet, start_pos: Point) -> Vec<(Point, usize)> {
+    let mut queue = std::collections::VecDeque::<(Point, usize)>::new();
+    let mut visited = std::collections::HashSet::<Point>::new();
+    let mut ret = Vec::new();
+
+    queue.push_back((start_pos, 0));
+    visited.insert(start_pos);
+
+    while !queue.is_empty() {
+        let (pos, dist) = queue.pop_front().unwrap();
+
+        let maybe_key = extract_key(map, pos);
+        if maybe_key.is_some() && !held_keys.has_key(maybe_key.unwrap()) {
+            ret.push((pos, dist));
+            continue;
+        }
+
+        for n in neighbours(pos) {
+            let (valid, _) = can_move(map, held_keys, n);
+            if valid && !visited.contains(&n) {
+                queue.push_back((n, dist + 1));
+                visited.insert(n);
+            }
+        }
+    }
+    ret
+}
+
 fn search(map: &Map, start_pos: Point, all_keys: &KeySet) -> Option<usize> {
     type Node = (Point, KeySet);
 
@@ -154,36 +189,18 @@ fn search(map: &Map, start_pos: Point, all_keys: &KeySet) -> Option<usize> {
             return Some(dist);
         }
 
-        for n in neighbours(pos) {
+        for (n, extra_dist) in reachable(map, &held_keys, pos) {
             let (valid, new_held_keys) = can_move(map, &held_keys, n);
             if valid &&
                 !finished.contains(&(n, new_held_keys)) &&
-                dist + 1 < prio.prio_for(&(n, new_held_keys)).unwrap_or(dist + 2)
+                dist + extra_dist < prio.prio_for(&(n, new_held_keys)).unwrap_or(dist + extra_dist + 1)
             {
-                prio.update((n, new_held_keys), dist + 1);
+                prio.update((n, new_held_keys), dist + extra_dist);
             }
         }
     }
 
     None
-}
-
-fn multi_neighbours(pos: (Point, Point, Point, Point)) -> Vec<(Point, Point, Point, Point)> {
-    let (p0, p1, p2, p3) = pos;
-    let mut ret = Vec::new();
-    for n in neighbours(p0) {
-        ret.push((n, p1, p2, p3));
-    }
-    for n in neighbours(p1) {
-        ret.push((p0, n, p2, p3));
-    }
-    for n in neighbours(p2) {
-        ret.push((p0, p1, n, p3));
-    }
-    for n in neighbours(p3) {
-        ret.push((p0, p1, p2, n));
-    }
-    ret
 }
 
 fn can_multi_move(map: &Map, held_keys: &KeySet, pos: (Point, Point, Point, Point)) -> (bool, KeySet) {
@@ -194,6 +211,23 @@ fn can_multi_move(map: &Map, held_keys: &KeySet, pos: (Point, Point, Point, Poin
     (valid0 && valid1 && valid2 && valid3,
      union(&union(&keys0, &keys1),
            &union(&keys2, &keys3)))
+}
+
+fn multi_reachable(map: &Map, held_keys: &KeySet, start_pos: (Point, Point, Point, Point)) -> Vec<((Point, Point, Point, Point), usize)> {
+    let mut ret = Vec::new();
+    for (p, dist) in reachable(map, held_keys, start_pos.0) {
+        ret.push(((p, start_pos.1, start_pos.2, start_pos.3), dist));
+    }
+    for (p, dist) in reachable(map, held_keys, start_pos.1) {
+        ret.push(((start_pos.0, p, start_pos.2, start_pos.3), dist));
+    }
+    for (p, dist) in reachable(map, held_keys, start_pos.2) {
+        ret.push(((start_pos.0, start_pos.1, p, start_pos.3), dist));
+    }
+    for (p, dist) in reachable(map, held_keys, start_pos.3) {
+        ret.push(((start_pos.0, start_pos.1, start_pos.2, p), dist));
+    }
+    ret
 }
 
 fn multi_search(map: &Map, start_pos: (Point, Point, Point, Point), all_keys: &KeySet) -> Option<usize> {
@@ -212,13 +246,13 @@ fn multi_search(map: &Map, start_pos: (Point, Point, Point, Point), all_keys: &K
             return Some(dist);
         }
 
-        for n in multi_neighbours(pos) {
+        for (n, extra_dist) in multi_reachable(map, &held_keys, pos) {
             let (valid, new_held_keys) = can_multi_move(map, &held_keys, n);
             if valid &&
                 !finished.contains(&(n, new_held_keys)) &&
-                dist + 1 < prio.prio_for(&(n, new_held_keys)).unwrap_or(dist + 2)
+                dist + extra_dist < prio.prio_for(&(n, new_held_keys)).unwrap_or(dist + extra_dist + 1)
             {
-                prio.update((n, new_held_keys), dist + 1);
+                prio.update((n, new_held_keys), dist + extra_dist);
             }
         }
     }
@@ -273,8 +307,8 @@ fn main() {
 
     println!("{}", best);
 
-    //let multi_best = do_multi_search(&map).unwrap();
-    //println!("{}", multi_best);
+    let multi_best = do_multi_search(&map).unwrap();
+    println!("{}", multi_best);
 }
 
 
