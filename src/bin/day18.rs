@@ -117,6 +117,10 @@ impl KeySet {
     */
 }
 
+fn union(keys1: &KeySet, keys2: &KeySet) -> KeySet {
+    KeySet { keys: keys1.keys | keys2.keys }
+}
+
 fn neighbours(p: Point) -> Vec<Point> {
     vec![(p.0 - 1, p.1), (p.0 + 1, p.1), (p.0, p.1 - 1), (p.0, p.1 + 1)]
 }
@@ -164,6 +168,80 @@ fn search(map: &Map, start_pos: Point, all_keys: &KeySet) -> Option<usize> {
     None
 }
 
+fn multi_neighbours(pos: (Point, Point, Point, Point)) -> Vec<(Point, Point, Point, Point)> {
+    let (p0, p1, p2, p3) = pos;
+    let mut ret = Vec::new();
+    for n in neighbours(p0) {
+        ret.push((n, p1, p2, p3));
+    }
+    for n in neighbours(p1) {
+        ret.push((p0, n, p2, p3));
+    }
+    for n in neighbours(p2) {
+        ret.push((p0, p1, n, p3));
+    }
+    for n in neighbours(p3) {
+        ret.push((p0, p1, p2, n));
+    }
+    ret
+}
+
+fn can_multi_move(map: &Map, held_keys: &KeySet, pos: (Point, Point, Point, Point)) -> (bool, KeySet) {
+    let (valid0, keys0) = can_move(map, held_keys, pos.0);
+    let (valid1, keys1) = can_move(map, held_keys, pos.1);
+    let (valid2, keys2) = can_move(map, held_keys, pos.2);
+    let (valid3, keys3) = can_move(map, held_keys, pos.3);
+    (valid0 && valid1 && valid2 && valid3,
+     union(&union(&keys0, &keys1),
+           &union(&keys2, &keys3)))
+}
+
+fn multi_search(map: &Map, start_pos: (Point, Point, Point, Point), all_keys: &KeySet) -> Option<usize> {
+    type Node = ((Point, Point, Point, Point), KeySet);
+
+    let mut prio = aoc2019::prio::Prio::<Node, usize>::new();
+    let mut finished = std::collections::HashSet::<Node>::new();
+
+    prio.update((start_pos, KeySet::new()), 0);
+
+    while !prio.is_empty() {
+        let ((pos, held_keys), dist) = prio.pop().unwrap();
+        //println!("visiting {}, {} (dist {}) with keys {:b}", pos.0, pos.1, dist, held_keys.keys);
+        finished.insert((pos, held_keys));
+        if held_keys == *all_keys {
+            return Some(dist);
+        }
+
+        for n in multi_neighbours(pos) {
+            let (valid, new_held_keys) = can_multi_move(map, &held_keys, n);
+            if valid &&
+                !finished.contains(&(n, new_held_keys)) &&
+                dist + 1 < prio.prio_for(&(n, new_held_keys)).unwrap_or(dist + 2)
+            {
+                prio.update((n, new_held_keys), dist + 1);
+            }
+        }
+    }
+
+    None
+}
+
+fn make_multi_map(map: &Map) -> (Map, (Point, Point, Point, Point)) {
+    let pos = find_elem(map, Elem::Start).unwrap();
+    let w = map.width();
+    let mut elems = map.elems.clone();
+    elems[((pos.0 + 0) + (pos.1 + 0) * w) as usize] = Elem::Wall;
+    elems[((pos.0 + 1) + (pos.1 + 0) * w) as usize] = Elem::Wall;
+    elems[((pos.0 - 1) + (pos.1 + 0) * w) as usize] = Elem::Wall;
+    elems[((pos.0 + 0) + (pos.1 + 1) * w) as usize] = Elem::Wall;
+    elems[((pos.0 + 0) + (pos.1 - 1) * w) as usize] = Elem::Wall;
+    let multi_map = Map { elems, elems_width: w };
+    (multi_map, ((pos.0 + 1, pos.1 + 1),
+                 (pos.0 - 1, pos.1 + 1),
+                 (pos.0 + 1, pos.1 - 1),
+                 (pos.0 - 1, pos.1 - 1)))
+}
+
 fn find_all_keys(map: &Map) -> KeySet {
     let mut all_keys = KeySet::new();
     let mut key_count = 0;
@@ -181,12 +259,22 @@ fn do_search(map: &Map) -> Option<usize> {
     search(map, start_pos, &all_keys)
 }
 
+fn do_multi_search(map: &Map) -> Option<usize> {
+    let (multi_map, start_pos) = make_multi_map(map);
+    let all_keys = find_all_keys(map);
+
+    multi_search(&multi_map, start_pos, &all_keys)
+}
+
 fn main() {
     let map = read_input(&slurp_stdin());
 
     let best = do_search(&map).unwrap();
 
     println!("{}", best);
+
+    //let multi_best = do_multi_search(&map).unwrap();
+    //println!("{}", multi_best);
 }
 
 
