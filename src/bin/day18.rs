@@ -214,11 +214,16 @@ fn make_multi_map(map: &Map) -> (Map, (Point, Point, Point, Point)) {
 }
 
 fn find_all_keys(map: &Map) -> KeySet {
+    fn is_key(e: &Elem) -> bool {
+        match *e {
+            Elem::Key(_) => true,
+            _ => false,
+        }
+    }
+    let positions = map.find_all_if(is_key);
     let mut all_keys = KeySet::new();
-    let mut key_count = 0;
-    while map.find_first(&Elem::Key(key_count)).is_some() {
-        all_keys.set_key(key_count);
-        key_count += 1;
+    for key in 0..positions.len() {
+        all_keys.set_key(key);
     }
     all_keys
 }

@@ -39,9 +39,21 @@ impl<T> Grid<T> {
     pub fn find_first(&self, item: &T) -> Option<(i64, i64)>
         where T: PartialEq
     {
+        self.find_first_if(|x| *x == *item)
+    }
+
+    pub fn find_all(&self, item: &T) -> Vec<(i64, i64)>
+        where T: PartialEq
+    {
+        self.find_all_if(|x| *x == *item)
+    }
+
+    pub fn find_first_if<P>(&self, pred: P) -> Option<(i64, i64)>
+        where P: Fn(&T) -> bool
+    {
         for y in 0..self.height() {
             for x in 0..self.width() {
-                if *self.get(x, y) == *item {
+                if pred(self.get(x, y)) {
                     return Some((x,y))
                 }
             }
@@ -49,13 +61,13 @@ impl<T> Grid<T> {
         None
     }
 
-    pub fn find_all(&self, item: &T) -> Vec<(i64, i64)>
-        where T: PartialEq
+    pub fn find_all_if<P>(&self, pred: P) -> Vec<(i64, i64)>
+        where P: Fn(&T) -> bool
     {
         let mut ret = Vec::new();
         for y in 0..self.height() {
             for x in 0..self.width() {
-                if *self.get(x, y) == *item {
+                if pred(self.get(x, y)) {
                     ret.push((x,y))
                 }
             }
