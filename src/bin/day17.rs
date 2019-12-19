@@ -1,5 +1,6 @@
 use aoc2019::io::{slurp_stdin, parse_intcode_program};
 use aoc2019::intcode;
+use aoc2019::dir::{Directional, Turn, turn};
 
 type Map = aoc2019::grid::Grid<char>;
 
@@ -39,33 +40,16 @@ fn find_intersections(map: &Map) -> Vec<(i64, i64)> {
     ret
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
-enum Dir {
-    Left,
-    Right,
-    Up,
-    Down,
-}
-
-impl Into<(i32, i32)> for Dir {
-    fn into(self) -> (i32, i32) {
-        match self {
-            Dir::Left => (-1, 0),
-            Dir::Right => (1, 0),
-            Dir::Up => (0, -1),
-            Dir::Down => (0, 1),
-        }
-    }
-}
+type Dir = aoc2019::dir::ScreenDir;
 
 fn find_robot(map: &Map) -> Option<(i64, i64, Dir)> {
     for y in 0..map.height() {
         for x in 0..map.width() {
             match map.get(x, y) {
-                '<' => return Some((x, y, Dir::Left)),
-                '>' => return Some((x, y, Dir::Right)),
-                '^' => return Some((x, y, Dir::Up)),
-                'v' => return Some((x, y, Dir::Down)),
+                '<' => return Some((x, y, Dir::West)),
+                '>' => return Some((x, y, Dir::East)),
+                '^' => return Some((x, y, Dir::North)),
+                'v' => return Some((x, y, Dir::South)),
                 _ => (),
             }
         }
@@ -74,49 +58,24 @@ fn find_robot(map: &Map) -> Option<(i64, i64, Dir)> {
 }
 
 fn can_walk(map: &Map, x: i64, y: i64, dir: Dir) -> bool {
-    match dir {
-        Dir::Left => x > 0 && *map.get(x - 1, y) != '.',
-        Dir::Right => x < map.width() - 1 && *map.get(x + 1, y) != '.',
-        Dir::Up => y > 0 && *map.get(x, y - 1) != '.',
-        Dir::Down => y < map.height() - 1 && *map.get(x, y + 1) != '.',
-    }
+    let (dx, dy) = dir.step();
+    *map.get(x + dx, y + dy) != '.'
 }
 
-fn valid_turn(map: &Map, x: i64, y: i64, dir: Dir) -> Option<char> {
-    let left = *map.get(x - 1, y);
-    let right = *map.get(x + 1, y);
-    let up = *map.get(x, y - 1);
-    let down = *map.get(x, y + 1);
-
-    let choose = |left_c, right_c| -> Option<char> {
-        if left_c != '.' {
-            Some('L')
-        } else if right_c != '.' {
-            Some('R')
-        } else {
-            None
+fn valid_turn(map: &Map, x: i64, y: i64, dir: Dir) -> Option<Turn> {
+    for t in vec![Turn::Left, Turn::Right].into_iter() {
+        let (dx, dy) = turn(dir, t).step();
+        if *map.get(x + dx, y + dy) != '.' {
+            return Some(t);
         }
-    };
-
-    match dir {
-        Dir::Left => choose(down, up),
-        Dir::Right => choose(up, down),
-        Dir::Up => choose(left, right),
-        Dir::Down => choose(right, left),
     }
+    None
 }
 
-fn turn(dir: Dir, turning: char) -> Option<Dir> {
-    match (dir, turning) {
-        (Dir::Left, 'L') => Some(Dir::Down),
-        (Dir::Left, 'R') => Some(Dir::Up),
-        (Dir::Right, 'L') => Some(Dir::Up),
-        (Dir::Right, 'R') => Some(Dir::Down),
-        (Dir::Up, 'L') => Some(Dir::Left),
-        (Dir::Up, 'R') => Some(Dir::Right),
-        (Dir::Down, 'L') => Some(Dir::Right),
-        (Dir::Down, 'R') => Some(Dir::Left),
-        _ => None,
+fn turnstr(t: Turn) -> String {
+    match t {
+        Turn::Left => String::from("L"),
+        Turn::Right => String::from("R"),
     }
 }
 
@@ -127,21 +86,18 @@ fn greedy_path(map: &Map) -> Vec<String> {
     loop {
         let mut steps = 0;
         while can_walk(map, x, y, dir) {
-            match dir {
-                Dir::Left => x -= 1,
-                Dir::Right => x += 1,
-                Dir::Up => y -= 1,
-                Dir::Down => y += 1,
-            }
+            let (dx,dy) = dir.step();
+            x += dx;
+            y += dy;
             steps += 1;
         }
         if steps > 0 {
             ret.push(steps.to_string());
         }
         match valid_turn(map, x, y, dir) {
-            Some(c) => {
-                dir = turn(dir, c).unwrap();
-                ret.push(c.to_string());
+            Some(t) => {
+                dir = turn(dir, t);
+                ret.push(turnstr(t));
             },
             None => return ret,
         }
