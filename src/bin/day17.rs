@@ -1,84 +1,36 @@
 use aoc2019::io::{slurp_stdin, parse_intcode_program};
 use aoc2019::intcode;
-use std::fmt::{Formatter, Error, Write};
 
-struct Map {
-    map: Vec<char>,
-    width: Option<usize>,
+type Map = aoc2019::grid::Grid<char>;
+
+struct MapBuilder {
+    grid_builder: aoc2019::grid::GridBuilder<char>,
 }
 
-impl Map {
-    fn new() -> Self {
-        Map { map: vec![], width: None }
-    }
-
-    fn get_width(&self) -> usize {
-        self.width.unwrap()
-    }
-
-    fn get_height(&self) -> usize {
-        assert_ne!(self.get_width(), 0);
-        assert_eq!(self.map.len() % self.get_width(), 0);
-        self.map.len() / self.get_width()
-    }
-
-    fn get(&self, x: usize, y: usize) -> char {
-        if x < self.get_width() && y < self.get_height() {
-            *self.map.get(y * self.get_width() + x).unwrap()
-        } else {
-            '.'
-        }
-    }
-
-    fn get_safe(&self, x: i32, y: i32) -> char {
-        if x < 0 || y < 0 {
-            '.'
-        } else {
-            self.get(x as usize, y as usize)
-        }
-    }
-}
-
-impl std::fmt::Display for Map {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        let width = self.get_width();
-        for (i, c) in self.map.iter().enumerate() {
-            f.write_char(*c).unwrap();
-            if i % width == width - 1 {
-                f.write_char('\n').unwrap();
-            }
-        }
-        Ok(())
-    }
-}
-
-impl intcode::Output for Map {
+impl intcode::Output for MapBuilder {
     fn next_output(&mut self, x: i64) {
         let c = x as u8 as char;
         if c == '\n' {
-            match self.width {
-                None => self.width = Some(self.map.len()),
-                Some(w) => assert_eq!(self.map.len() % w, 0),
-            }
+            self.grid_builder.eol();
         } else {
-            self.map.push(c);
+            self.grid_builder.push(c);
         }
     }
 }
 
-fn find_intersections(map: &Map) -> Vec<(usize, usize)> {
+fn find_intersections(map: &Map) -> Vec<(i64, i64)> {
     fn is_scaffold(c: char) -> bool {
         c == '#' || c == '<' || c == '>' || c == '^' || c == 'v'
     }
 
     let mut ret = Vec::new();
-    for y in 1..map.get_height() - 1 {
-        for x in 1..map.get_width() - 1 {
-            if is_scaffold(map.get(x, y)) &&
-                is_scaffold(map.get(x - 1, y)) &&
-                is_scaffold(map.get(x + 1, y)) &&
-                is_scaffold(map.get(x, y - 1)) &&
-                is_scaffold(map.get(x, y + 1))
+    for y in 1..map.height() - 1 {
+        for x in 1..map.width() - 1 {
+            if is_scaffold(*map.get(x, y)) &&
+                is_scaffold(*map.get(x - 1, y)) &&
+                is_scaffold(*map.get(x + 1, y)) &&
+                is_scaffold(*map.get(x, y - 1)) &&
+                is_scaffold(*map.get(x, y + 1))
             {
                 ret.push((x, y));
             }
@@ -106,9 +58,9 @@ impl Into<(i32, i32)> for Dir {
     }
 }
 
-fn find_robot(map: &Map) -> Option<(usize, usize, Dir)> {
-    for y in 0..map.get_height() {
-        for x in 0..map.get_width() {
+fn find_robot(map: &Map) -> Option<(i64, i64, Dir)> {
+    for y in 0..map.height() {
+        for x in 0..map.width() {
             match map.get(x, y) {
                 '<' => return Some((x, y, Dir::Left)),
                 '>' => return Some((x, y, Dir::Right)),
@@ -121,23 +73,20 @@ fn find_robot(map: &Map) -> Option<(usize, usize, Dir)> {
     None
 }
 
-fn can_walk(map: &Map, x: usize, y: usize, dir: Dir) -> bool {
+fn can_walk(map: &Map, x: i64, y: i64, dir: Dir) -> bool {
     match dir {
-        Dir::Left => x > 0 && map.get(x - 1, y) != '.',
-        Dir::Right => x < map.get_width() - 1 && map.get(x + 1, y) != '.',
-        Dir::Up => y > 0 && map.get(x, y - 1) != '.',
-        Dir::Down => y < map.get_height() - 1 && map.get(x, y + 1) != '.',
+        Dir::Left => x > 0 && *map.get(x - 1, y) != '.',
+        Dir::Right => x < map.width() - 1 && *map.get(x + 1, y) != '.',
+        Dir::Up => y > 0 && *map.get(x, y - 1) != '.',
+        Dir::Down => y < map.height() - 1 && *map.get(x, y + 1) != '.',
     }
 }
 
-fn valid_turn(map: &Map, x: usize, y: usize, dir: Dir) -> Option<char> {
-    let sx = x as i32;
-    let sy = y as i32;
-
-    let left = map.get_safe(sx - 1, sy);
-    let right = map.get_safe(sx + 1, sy);
-    let up = map.get_safe(sx, sy - 1);
-    let down = map.get_safe(sx, sy + 1);
+fn valid_turn(map: &Map, x: i64, y: i64, dir: Dir) -> Option<char> {
+    let left = *map.get(x - 1, y);
+    let right = *map.get(x + 1, y);
+    let up = *map.get(x, y - 1);
+    let down = *map.get(x, y + 1);
 
     let choose = |left_c, right_c| -> Option<char> {
         if left_c != '.' {
@@ -233,12 +182,13 @@ fn break_down_commands<'a>(cmds: &'a [String], routines: &mut Vec<&'a [String]>,
 fn main() {
     let program = parse_intcode_program(&slurp_stdin());
 
-    let mut map = Map::new();
-    intcode::run_program_splitio(program.clone(), &mut vec![], &mut map).unwrap();
+    let mut map_builder = MapBuilder { grid_builder: aoc2019::grid::GridBuilder::new() };
+    intcode::run_program_splitio(program.clone(), &mut vec![], &mut map_builder).unwrap();
+    let map = map_builder.grid_builder.build('.');
 
     let intersections = find_intersections(&map);
 
-    let alignments: usize = intersections.iter()
+    let alignments: i64 = intersections.iter()
         .map(|(x, y)| *x * *y)
         .sum();
 

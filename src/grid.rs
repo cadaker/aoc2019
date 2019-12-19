@@ -1,3 +1,5 @@
+use std::fmt::{Formatter, Error};
+
 #[derive(Clone)]
 pub struct Grid<T> {
     elems: Vec<T>,
@@ -73,6 +75,21 @@ impl<T> Grid<T> {
             }
         }
         ret
+    }
+}
+
+impl<T> std::fmt::Display for Grid<T>
+    where T: std::fmt::Display
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+        let width = self.width() as usize;
+        for (i, item) in self.elems.iter().enumerate() {
+            write!(f, "{}", item)?;
+            if i % width == width - 1 {
+                write!(f, "\n")?;
+            }
+        }
+        Ok(())
     }
 }
 
