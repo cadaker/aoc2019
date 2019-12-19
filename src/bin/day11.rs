@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use aoc2019::io::{slurp_stdin, parse_intcode_program};
 use aoc2019::intcode;
+use aoc2019::dir::{Directional, Turn, turn_to};
 
 #[derive(Clone,Copy,PartialEq,Eq)]
 enum Color {
@@ -11,53 +12,29 @@ enum Color {
 const BLACK: i64 = 0;
 const WHITE: i64 = 1;
 
-#[derive(Clone,Copy,PartialEq,Eq)]
-enum Direction {
-    Up,
-    Right,
-    Down,
-    Left,
-}
-
-#[derive(Clone,Copy,PartialEq,Eq)]
-enum Turn {
-    Left,
-    Right,
-}
+type Dir = aoc2019::dir::CartesianDir;
 
 const LEFT: i64 = 0;
 const RIGHT: i64 = 1;
 
 struct Robot {
-    x: i32,
-    y: i32,
-    colors: HashMap<(i32,i32),Color>,
-    dir: Direction,
+    x: i64,
+    y: i64,
+    colors: HashMap<(i64,i64),Color>,
+    dir: Dir,
 }
 
 impl Robot {
     fn new() -> Self {
-        Robot { x: 0, y: 0, colors: HashMap::new(), dir: Direction::Up }
+        Robot { x: 0, y: 0, colors: HashMap::new(), dir: Dir::North }
     }
 
     fn trigger(&mut self, paint: Color, turn: Turn) {
         self.colors.insert((self.x, self.y), paint);
-        self.dir = match (self.dir, turn) {
-            (Direction::Up, Turn::Left) => Direction::Left,
-            (Direction::Up, Turn::Right) => Direction::Right,
-            (Direction::Right, Turn::Left) => Direction::Up,
-            (Direction::Right, Turn::Right) => Direction::Down,
-            (Direction::Down, Turn::Left) => Direction::Right,
-            (Direction::Down, Turn::Right) => Direction::Left,
-            (Direction::Left, Turn::Left) => Direction::Down,
-            (Direction::Left, Turn::Right) => Direction::Up,
-        };
-        match self.dir {
-            Direction::Up => { self.y += 1; },
-            Direction::Right => { self.x += 1; },
-            Direction::Down => { self.y -= 1; },
-            Direction::Left => { self.x -= 1; },
-        }
+        self.dir = turn_to(self.dir, turn);
+        let (dx,dy) = self.dir.step();
+        self.x += dx;
+        self.y += dy;
     }
 }
 
@@ -108,7 +85,7 @@ fn main() {
         robot_io.robot.colors.insert((0,0), Color::White);
         intcode::run_program(program.clone(), &mut robot_io).unwrap();
 
-        let points: Vec<(i32,i32)> = robot_io.robot.colors
+        let points: Vec<(i64,i64)> = robot_io.robot.colors
             .iter()
             .filter(|&(_, color)| *color == Color::White )
             .map(|(p,_)| *p)
