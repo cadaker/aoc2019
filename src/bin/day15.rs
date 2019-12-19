@@ -1,5 +1,6 @@
 use aoc2019::io::{slurp_stdin, parse_intcode_program};
 use aoc2019::intcode;
+use aoc2019::dir::Directional;
 
 type Point = (i64,i64);
 
@@ -16,34 +17,22 @@ fn lookup(map: &Map, p: Point) -> Terrain {
     *map.get(&p).unwrap_or(&Terrain::Unknown)
 }
 
-#[derive(Eq, PartialEq, Copy, Clone, Debug)]
-enum Step {
-    North,
-    South,
-    West,
-    East,
-}
+type Step = aoc2019::dir::ScreenDir;
 
 const ALL_DIRS: [Step; 4] = [Step::North, Step::South, Step::East, Step::West];
 
-impl Into<intcode::Mem> for Step {
-    fn into(self) -> i64 {
-        match self {
-            Step::North => 1,
-            Step::South => 2,
-            Step::West => 3,
-            Step::East => 4,
-        }
+fn mem_output(step: Step) -> intcode::Mem {
+    match step {
+        Step::North => 1,
+        Step::South => 2,
+        Step::West => 3,
+        Step::East => 4,
     }
 }
 
 fn step_to(pos: Point, step: Step) -> Point {
-    match step {
-        Step::North => (pos.0, pos.1 - 1),
-        Step::South => (pos.0, pos.1 + 1),
-        Step::West => (pos.0 - 1, pos.1),
-        Step::East => (pos.0 + 1, pos.1),
-    }
+    let (dx, dy) = step.step();
+    (pos.0 + dx, pos.1 + dy)
 }
 
 fn find_nearest_unknown(map: &Map, robot_pos: Point) -> Option<Point> {
@@ -168,7 +157,7 @@ impl intcode::InputOutput for RobotController {
 
         assert!(self.is_moving());
 
-        Ok(self.next_step().into())
+        Ok(mem_output(self.next_step()))
     }
 
     fn next_output(&mut self, x: i64) {
