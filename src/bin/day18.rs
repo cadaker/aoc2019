@@ -1,6 +1,6 @@
 use aoc2019::io::slurp_stdin;
 
-type Point = (i32, i32);
+type Point = (i64, i64);
 
 #[derive(Eq, PartialEq, Clone, Copy)]
 enum Elem {
@@ -11,38 +11,11 @@ enum Elem {
     Door(usize),
 }
 
-struct Map {
-    elems: Vec<Elem>,
-    elems_width: i32,
-}
-
-impl Map {
-    fn new(elems: Vec<Elem>, elems_width: i32) -> Self {
-        assert!(elems_width > 0);
-        assert_eq!(elems.len() as i32 % elems_width, 0);
-        Map { elems, elems_width }
-    }
-
-    fn width(&self) -> i32 {
-        self.elems_width
-    }
-
-    fn height(&self) -> i32 {
-        self.elems.len() as i32 / self.elems_width
-    }
-
-    fn get(&self, x: i32, y: i32) -> Elem {
-        if 0 <= x && x < self.width() && 0 <= y && y < self.height() {
-            self.elems[(x + y * self.width()) as usize]
-        } else {
-            Elem::Wall
-        }
-    }
-}
+type Map = aoc2019::grid::Grid<Elem>;
 
 struct MapBuilder {
     elems: Vec<Elem>,
-    width: Option<i32>,
+    width: Option<usize>,
 }
 
 impl MapBuilder {
@@ -59,9 +32,9 @@ impl MapBuilder {
             'A'..='Z' => self.elems.push(Elem::Door(c as usize - 'A' as usize)),
             '\n' => {
                 if self.width.is_none() {
-                    self.width = Some(self.elems.len() as i32);
+                    self.width = Some(self.elems.len());
                 } else {
-                    assert_eq!(self.elems.len() as i32 % self.width.unwrap(), 0);
+                    assert_eq!(self.elems.len() % self.width.unwrap(), 0);
                 }
             },
             _ => unreachable!(),
@@ -69,7 +42,7 @@ impl MapBuilder {
     }
 
     fn build(self) -> Map {
-        Map::new(self.elems, self.width.unwrap())
+        Map::new(self.elems, self.width.unwrap(), Elem::Wall)
     }
 }
 
@@ -84,7 +57,7 @@ fn read_input(input: &str) -> Map {
 fn find_elem(map: &Map, elem: Elem) -> Option<Point> {
     for y in 0..map.height() {
         for x in 0..map.width() {
-            if map.get(x, y) == elem {
+            if *map.get(x, y) == elem {
                 return Some((x,y));
             }
         }
@@ -126,7 +99,7 @@ fn neighbours(p: Point) -> Vec<Point> {
 }
 
 fn can_move(map: &Map, held_keys: &KeySet, pos: Point) -> (bool, KeySet) {
-    match map.get(pos.0, pos.1) {
+    match *map.get(pos.0, pos.1) {
         Elem::Wall => (false, *held_keys),
         Elem::Door(key) => (held_keys.has_key(key), *held_keys),
         Elem::Key(key) => {
@@ -139,7 +112,7 @@ fn can_move(map: &Map, held_keys: &KeySet, pos: Point) -> (bool, KeySet) {
 }
 
 fn extract_key(map: &Map, pos: Point) -> Option<usize> {
-    match map.get(pos.0, pos.1) {
+    match *map.get(pos.0, pos.1) {
         Elem::Key(key) => Some(key),
         _ => None,
     }
@@ -263,13 +236,13 @@ fn multi_search(map: &Map, start_pos: (Point, Point, Point, Point), all_keys: &K
 fn make_multi_map(map: &Map) -> (Map, (Point, Point, Point, Point)) {
     let pos = find_elem(map, Elem::Start).unwrap();
     let w = map.width();
-    let mut elems = map.elems.clone();
+    let mut elems = map.clone().sink_elems();
     elems[((pos.0 + 0) + (pos.1 + 0) * w) as usize] = Elem::Wall;
     elems[((pos.0 + 1) + (pos.1 + 0) * w) as usize] = Elem::Wall;
     elems[((pos.0 - 1) + (pos.1 + 0) * w) as usize] = Elem::Wall;
     elems[((pos.0 + 0) + (pos.1 + 1) * w) as usize] = Elem::Wall;
     elems[((pos.0 + 0) + (pos.1 - 1) * w) as usize] = Elem::Wall;
-    let multi_map = Map { elems, elems_width: w };
+    let multi_map = Map::new(elems, w as usize, Elem::Wall);
     (multi_map, ((pos.0 + 1, pos.1 + 1),
                  (pos.0 - 1, pos.1 + 1),
                  (pos.0 + 1, pos.1 - 1),
