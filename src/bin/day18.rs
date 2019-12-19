@@ -13,45 +13,20 @@ enum Elem {
 
 type Map = aoc2019::grid::Grid<Elem>;
 
-struct MapBuilder {
-    elems: Vec<Elem>,
-    width: Option<usize>,
-}
-
-impl MapBuilder {
-    fn new() -> Self {
-        MapBuilder { elems: Vec::new(), width: None }
-    }
-
-    fn push(&mut self, c: char) {
+fn read_input(input: &str) -> Map {
+    let mut builder =  aoc2019::grid::GridBuilder::new();
+    for c in input.chars() {
         match c {
-            '#' => self.elems.push(Elem::Wall),
-            '.' => self.elems.push(Elem::Open),
-            '@' => self.elems.push(Elem::Start),
-            'a'..='z' => self.elems.push(Elem::Key(c as usize - 'a' as usize)),
-            'A'..='Z' => self.elems.push(Elem::Door(c as usize - 'A' as usize)),
-            '\n' => {
-                if self.width.is_none() {
-                    self.width = Some(self.elems.len());
-                } else {
-                    assert_eq!(self.elems.len() % self.width.unwrap(), 0);
-                }
-            },
+            '#' => builder.push(Elem::Wall),
+            '.' => builder.push(Elem::Open),
+            '@' => builder.push(Elem::Start),
+            'a'..='z' => builder.push(Elem::Key(c as usize - 'a' as usize)),
+            'A'..='Z' => builder.push(Elem::Door(c as usize - 'A' as usize)),
+            '\n' => builder.eol(),
             _ => unreachable!(),
         }
     }
-
-    fn build(self) -> Map {
-        Map::new(self.elems, self.width.unwrap(), Elem::Wall)
-    }
-}
-
-fn read_input(input: &str) -> Map {
-    let mut builder = MapBuilder::new();
-    for c in input.chars() {
-        builder.push(c);
-    }
-    builder.build()
+    builder.build(Elem::Wall)
 }
 
 fn find_elem(map: &Map, elem: Elem) -> Option<Point> {

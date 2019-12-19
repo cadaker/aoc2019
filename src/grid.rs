@@ -36,3 +36,30 @@ impl<T: Clone> Grid<T> {
         self.elems
     }
 }
+
+pub struct GridBuilder<T: Clone> {
+    elems: Vec<T>,
+    width: Option<usize>,
+}
+
+impl<T: Clone> GridBuilder<T> {
+    pub fn new() -> Self {
+        GridBuilder { elems: Vec::new(), width: None }
+    }
+
+    pub fn push(&mut self, elem: T) {
+        self.elems.push(elem)
+    }
+
+    pub fn eol(&mut self) {
+        if self.width.is_none() {
+            self.width = Some(self.elems.len());
+        } else {
+            assert_eq!(self.elems.len() % self.width.unwrap(), 0);
+        }
+    }
+
+    pub fn build(self, default: T) -> Grid<T> {
+        Grid::new(self.elems, self.width.unwrap(), default)
+    }
+}
