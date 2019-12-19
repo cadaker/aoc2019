@@ -1,6 +1,6 @@
 use aoc2019::io::{slurp_stdin, parse_intcode_program};
 use aoc2019::intcode;
-use aoc2019::dir::{Directional, Turn, turn_to};
+use aoc2019::dir::{Directional, Turn, turn_to, step_to};
 
 type Map = aoc2019::grid::Grid<char>;
 
@@ -58,14 +58,13 @@ fn find_robot(map: &Map) -> Option<(i64, i64, Dir)> {
 }
 
 fn can_walk(map: &Map, x: i64, y: i64, dir: Dir) -> bool {
-    let (dx, dy) = dir.step();
-    *map.get(x + dx, y + dy) != '.'
+    *map.get_xy(step_to((x,y), dir)) != '.'
 }
 
 fn valid_turn(map: &Map, x: i64, y: i64, dir: Dir) -> Option<Turn> {
     for t in vec![Turn::Left, Turn::Right].into_iter() {
-        let (dx, dy) = turn_to(dir, t).step();
-        if *map.get(x + dx, y + dy) != '.' {
+        let new_dir = turn_to(dir, t);
+        if *map.get_xy(step_to((x,y), new_dir)) != '.' {
             return Some(t);
         }
     }

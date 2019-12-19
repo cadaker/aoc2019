@@ -31,6 +31,11 @@ pub trait Directional {
     fn coord_system() -> CoordinateSystem;
 }
 
+pub fn step_to<D: Directional>(pos: (i64, i64), dir: D) -> (i64, i64) {
+    let (dx, dy) = dir.step();
+    (pos.0 + dx, pos.1 + dy)
+}
+
 #[derive(PartialOrd, PartialEq, Ord, Eq, Copy, Clone, Debug)]
 pub enum Turn {
     Left,

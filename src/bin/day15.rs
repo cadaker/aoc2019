@@ -1,6 +1,6 @@
 use aoc2019::io::{slurp_stdin, parse_intcode_program};
 use aoc2019::intcode;
-use aoc2019::dir::Directional;
+use aoc2019::dir::step_to;
 
 type Point = (i64,i64);
 
@@ -28,11 +28,6 @@ fn mem_output(step: Step) -> intcode::Mem {
         Step::West => 3,
         Step::East => 4,
     }
-}
-
-fn step_to(pos: Point, step: Step) -> Point {
-    let (dx, dy) = step.step();
-    (pos.0 + dx, pos.1 + dy)
 }
 
 fn find_nearest_unknown(map: &Map, robot_pos: Point) -> Option<Point> {
