@@ -1,6 +1,6 @@
 use aoc2019::io::{slurp_stdin, parse_intcode_program};
 use aoc2019::intcode;
-use aoc2019::dir::{Directional, Turn, turn};
+use aoc2019::dir::{Directional, Turn, turn_to};
 
 type Map = aoc2019::grid::Grid<char>;
 
@@ -64,7 +64,7 @@ fn can_walk(map: &Map, x: i64, y: i64, dir: Dir) -> bool {
 
 fn valid_turn(map: &Map, x: i64, y: i64, dir: Dir) -> Option<Turn> {
     for t in vec![Turn::Left, Turn::Right].into_iter() {
-        let (dx, dy) = turn(dir, t).step();
+        let (dx, dy) = turn_to(dir, t).step();
         if *map.get(x + dx, y + dy) != '.' {
             return Some(t);
         }
@@ -96,7 +96,7 @@ fn greedy_path(map: &Map) -> Vec<String> {
         }
         match valid_turn(map, x, y, dir) {
             Some(t) => {
-                dir = turn(dir, t);
+                dir = turn_to(dir, t);
                 ret.push(turnstr(t));
             },
             None => return ret,

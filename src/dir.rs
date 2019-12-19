@@ -37,7 +37,7 @@ pub enum Turn {
     Right,
 }
 
-pub fn turn<D: Directional>(dir: D, turn: Turn) -> D {
+pub fn turn_to<D: Directional>(dir: D, turn: Turn) -> D {
     match (dir.as_dir(), turn) {
         (Dir::North, Turn::Left) => D::from_dir(Dir::West),
         (Dir::North, Turn::Right) => D::from_dir(Dir::East),
