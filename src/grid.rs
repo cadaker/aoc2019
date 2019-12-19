@@ -1,11 +1,11 @@
 #[derive(Clone)]
-pub struct Grid<T: Clone> {
+pub struct Grid<T> {
     elems: Vec<T>,
     elems_width: usize,
     default: T,
 }
 
-impl<T: Clone> Grid<T> {
+impl<T> Grid<T> {
     pub fn new(elems: Vec<T>, elems_width: usize, default: T) -> Self {
         assert!(elems_width > 0);
         assert_eq!(elems.len() % elems_width, 0);
@@ -35,14 +35,41 @@ impl<T: Clone> Grid<T> {
     pub fn sink_elems(self) -> Vec<T> {
         self.elems
     }
+
+    pub fn find_first(&self, item: &T) -> Option<(i64, i64)>
+        where T: PartialEq
+    {
+        for y in 0..self.height() {
+            for x in 0..self.width() {
+                if *self.get(x, y) == *item {
+                    return Some((x,y))
+                }
+            }
+        }
+        None
+    }
+
+    pub fn find_all(&self, item: &T) -> Vec<(i64, i64)>
+        where T: PartialEq
+    {
+        let mut ret = Vec::new();
+        for y in 0..self.height() {
+            for x in 0..self.width() {
+                if *self.get(x, y) == *item {
+                    ret.push((x,y))
+                }
+            }
+        }
+        ret
+    }
 }
 
-pub struct GridBuilder<T: Clone> {
+pub struct GridBuilder<T> {
     elems: Vec<T>,
     width: Option<usize>,
 }
 
-impl<T: Clone> GridBuilder<T> {
+impl<T> GridBuilder<T> {
     pub fn new() -> Self {
         GridBuilder { elems: Vec::new(), width: None }
     }

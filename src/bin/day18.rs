@@ -29,17 +29,6 @@ fn read_input(input: &str) -> Map {
     builder.build(Elem::Wall)
 }
 
-fn find_elem(map: &Map, elem: Elem) -> Option<Point> {
-    for y in 0..map.height() {
-        for x in 0..map.width() {
-            if *map.get(x, y) == elem {
-                return Some((x,y));
-            }
-        }
-    }
-    None
-}
-
 #[derive(Eq, PartialEq, PartialOrd, Ord, Hash, Clone, Copy)]
 struct KeySet {
     keys: usize,
@@ -209,7 +198,7 @@ fn multi_search(map: &Map, start_pos: (Point, Point, Point, Point), all_keys: &K
 }
 
 fn make_multi_map(map: &Map) -> (Map, (Point, Point, Point, Point)) {
-    let pos = find_elem(map, Elem::Start).unwrap();
+    let pos = map.find_first(&Elem::Start).unwrap();
     let w = map.width();
     let mut elems = map.clone().sink_elems();
     elems[((pos.0 + 0) + (pos.1 + 0) * w) as usize] = Elem::Wall;
@@ -227,7 +216,7 @@ fn make_multi_map(map: &Map) -> (Map, (Point, Point, Point, Point)) {
 fn find_all_keys(map: &Map) -> KeySet {
     let mut all_keys = KeySet::new();
     let mut key_count = 0;
-    while find_elem(&map, Elem::Key(key_count)).is_some() {
+    while map.find_first(&Elem::Key(key_count)).is_some() {
         all_keys.set_key(key_count);
         key_count += 1;
     }
@@ -235,7 +224,7 @@ fn find_all_keys(map: &Map) -> KeySet {
 }
 
 fn do_search(map: &Map) -> Option<usize> {
-    let start_pos = find_elem(&map, Elem::Start).unwrap();
+    let start_pos = map.find_first(&Elem::Start).unwrap();
     let all_keys = find_all_keys(&map);
 
     search(map, start_pos, &all_keys)
