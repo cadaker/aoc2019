@@ -157,10 +157,58 @@ impl dijkstra::Dijkstra for PathFinding<'_> {
     }
 }
 
+struct RecursivePathFinding<'a> {
+    maze: &'a Grid<Elem>,
+}
+
+impl dijkstra::Dijkstra for RecursivePathFinding<'_> {
+    type Node = (Point, usize);
+
+    fn reachable(&mut self, node: &Self::Node) -> Vec<(Self::Node, usize)> {
+        let mut ret = Vec::new();
+        let (pos, level) = *node;
+        for p in neighbours(pos) {
+            if *self.maze.get_xy(p) != Elem::Wall {
+                ret.push(((p, level), 1));
+            }
+        }
+
+        fn is_outer(maze: &Grid<Elem>, pos: Point) -> bool {
+            pos.0 == 0 || pos.1 == 0 || pos.0 == maze.width() - 1 || pos.1 == maze.height() - 1
+        }
+
+        match self.maze.get_xy(pos) {
+            Elem::Portal(p) => {
+                if is_outer(self.maze, pos) {
+                    if level > 0 {
+                        ret.push(((*p, level - 1), 1));
+                    }
+                } else {
+                    ret.push(((*p, level + 1), 1));
+                }
+            },
+            _ => (),
+        }
+        ret
+    }
+
+    fn target(&mut self, node: &Self::Node) -> bool {
+        let (pos, level) = *node;
+        level == 0 && *self.maze.get_xy(pos) == Elem::End
+    }
+}
+
 fn find_path(maze: &Grid<Elem>) -> Option<usize> {
     let start_pos = maze.find_first(&Elem::Start).unwrap();
     let mut dijkstra_handler = PathFinding { maze: &maze };
     let res = dijkstra::dijkstra(&mut dijkstra_handler, start_pos);
+    res.map(|r| r.1)
+}
+
+fn find_recursive_path(maze: &Grid<Elem>) -> Option<usize> {
+    let start_pos = maze.find_first(&Elem::Start).unwrap();
+    let mut dijkstra_handler = RecursivePathFinding { maze: &maze };
+    let res = dijkstra::dijkstra(&mut dijkstra_handler, (start_pos, 0));
     res.map(|r| r.1)
 }
 
@@ -169,6 +217,9 @@ fn main() {
 
     let dist = find_path(&maze).unwrap();
     println!("{}", dist);
+
+    let dist_recursive = find_recursive_path(&maze).unwrap();
+    println!("{}", dist_recursive);
 }
 
 #[cfg(test)]
