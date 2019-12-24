@@ -32,11 +32,15 @@ fn grow_square(current: i64, neighbours: i64) -> i64 {
     }
 }
 
-fn evolve(map: &Map) -> Map {
+fn basic_neighbours(map: &Map, x: i64, y: i64) -> i64 {
+    map.get(x+1, y) + map.get(x-1, y) + map.get(x, y+1) + map.get(x, y-1)
+}
+
+fn evolve<NeighbourFn: Fn(i64, i64) -> i64>(map: &Map, neighbour_func: NeighbourFn) -> Map {
     let mut b = GridBuilder::new();
     for y in 0..map.height() {
         for x in 0..map.width() {
-            let neighbours = map.get(x+1, y) + map.get(x-1, y) + map.get(x, y+1) + map.get(x, y-1);
+            let neighbours = neighbour_func(x, y);
             b.push(grow_square(*map.get(x,y), neighbours));
         }
         b.eol();
@@ -62,7 +66,7 @@ fn find_first_duplicate(map: &Map) -> Map {
             return map;
         } else {
             found.insert(bio);
-            map = evolve(&map);
+            map = evolve(&map, |x, y| basic_neighbours(&map, x, y));
         }
     }
 }
@@ -111,6 +115,37 @@ fn create_empty_map() -> Map {
     Map::new(elems, W as usize, EMPTY)
 }
 
+fn hyper_neighbours(map: &Map, inner_neighbour: &Map, outer_neighbour: &Map, x: i64, y: i64) -> i64 {
+    if x == 2 && y == 2 {
+        return 0;
+    }
+
+    let mut neighbours = basic_neighbours(map, x, y);
+    if x == 0 {
+        neighbours += get_inner(outer_neighbour, Dir::West);
+    }
+    if x == W-1 {
+        neighbours += get_inner(outer_neighbour, Dir::East);
+    }
+    if y == 0 {
+        neighbours += get_inner(outer_neighbour, Dir::North);
+    }
+    if y == H-1 {
+        neighbours += get_inner(outer_neighbour, Dir::South);
+    }
+
+    if x == 2 && y == 1 {
+        neighbours += get_outer(inner_neighbour, Dir::North);
+    } else if x == 2 && y == 3 {
+        neighbours += get_outer(inner_neighbour, Dir::South);
+    } else if y == 2 && x == 1 {
+        neighbours += get_outer(inner_neighbour, Dir::West);
+    } else if y == 2 && x == 3 {
+        neighbours += get_outer(inner_neighbour, Dir::East);
+    }
+    neighbours
+}
+
 fn hyper_evolve(hyper_map: &HyperMap) -> HyperMap {
     let mut new_maps = HashMap::new();
     let empty_map = create_empty_map();
@@ -121,43 +156,12 @@ fn hyper_evolve(hyper_map: &HyperMap) -> HyperMap {
 
         assert_eq!(map.width(), W);
         assert_eq!(map.height(), H);
-        let mut b = GridBuilder::new();
-        for y in 0..H {
-            for x in 0..W {
-                if x == 2 && y == 2 {
-                    b.push(EMPTY);
-                    continue;
-                }
 
-                let mut neighbours = map.get(x+1, y) + map.get(x-1, y) + map.get(x, y+1) + map.get(x, y-1);
-                if x == 0 {
-                    neighbours += get_inner(outer_neighbour, Dir::West);
-                }
-                if x == W-1 {
-                    neighbours += get_inner(outer_neighbour, Dir::East);
-                }
-                if y == 0 {
-                    neighbours += get_inner(outer_neighbour, Dir::North);
-                }
-                if y == H-1 {
-                    neighbours += get_inner(outer_neighbour, Dir::South);
-                }
+        let new_map = evolve(map, |x, y| {
+            hyper_neighbours(&map, inner_neighbour, outer_neighbour, x, y)
+        });
 
-                if x == 2 && y == 1 {
-                    neighbours += get_outer(inner_neighbour, Dir::North);
-                } else if x == 2 && y == 3 {
-                    neighbours += get_outer(inner_neighbour, Dir::South);
-                } else if y == 2 && x == 1 {
-                    neighbours += get_outer(inner_neighbour, Dir::West);
-                } else if y == 2 && x == 3 {
-                    neighbours += get_outer(inner_neighbour, Dir::East);
-                }
-
-                b.push(grow_square(*map.get(x,y), neighbours));
-            }
-            b.eol();
-        }
-        new_maps.insert(*level, b.build(EMPTY));
+        new_maps.insert(*level, new_map);
     }
 
     HyperMap { maps: new_maps }
