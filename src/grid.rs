@@ -77,8 +77,8 @@ impl<T> Grid<T> {
         ret
     }
 
-    pub fn iter(&self) -> std::slice::Iter<T> {
-        self.elems.iter()
+    pub fn iter(&self) -> GridIterator<'_, T> {
+        GridIterator { elems: &self.elems, pos: 0, stride: 1 }
     }
 }
 
@@ -122,5 +122,73 @@ impl<T> GridBuilder<T> {
     pub fn build(self, default: T) -> Grid<T> {
         assert!(self.width.is_some());
         Grid::new(self.elems, self.width.unwrap(), default)
+    }
+}
+
+pub struct GridIterator<'a, T> {
+    elems: &'a [T],
+    pos: usize,
+    stride: usize,
+}
+
+impl<'a, T> Iterator for GridIterator<'a, T> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.pos < self.elems.len() {
+            let ret = &self.elems[self.pos];
+            self.pos += self.stride;
+            Some(ret)
+        } else  {
+            None
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_grid() -> Grid<i64> {
+        let mut builder = GridBuilder::new();
+        let mut i = 0;
+        for _ in 0..3 {
+            for _ in 0..4 {
+                builder.push(i);
+                i += 1;
+            }
+            builder.eol();
+        }
+        builder.build(-1)
+    }
+
+    #[test]
+    fn test_build() {
+        let grid = make_grid();
+        assert_eq!(grid.width(), 4);
+        assert_eq!(grid.height(), 3);
+        for y in 0..grid.height() {
+            for x in 0..grid.width() {
+                assert_eq!(*grid.get(x, y), y*grid.width() + x);
+            }
+        }
+    }
+
+    #[test]
+    fn test_out_of_bounds() {
+        let grid = make_grid();
+        assert_eq!(*grid.get(-1, 0), -1);
+        assert_eq!(*grid.get(-100, 0), -1);
+        assert_eq!(*grid.get(-1, 100), -1);
+        assert_eq!(*grid.get(0, 100), -1);
+        assert_eq!(*grid.get(100, 0), -1);
+        assert_eq!(*grid.get(100, 100), -1);
+    }
+
+    #[test]
+    fn test_iter() {
+        let grid = make_grid();
+        let elems: Vec<_> = grid.iter().cloned().collect();
+        assert_eq!(elems, grid.elems);
     }
 }
