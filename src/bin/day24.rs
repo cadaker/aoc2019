@@ -44,38 +44,6 @@ fn evolve(map: &Map) -> Map {
     b.build(EMPTY)
 }
 
-fn find_cycle<T: Clone + PartialEq, F: Fn(T) -> T>(f: F, start: T) -> (usize, usize) {
-    // Return P, C - where P is the length of the non-repeating prefix, and C
-    // the length of the cycle.
-    let mut x = f(start.clone());
-    let mut x2 = f(f(start.clone()));
-    while x != x2 {
-        x = f(x);
-        x2 = f(f(x2));
-    }
-
-    // f^n(x) = f^2n(x)
-    // n == P + X, 2n == P + X + k*C
-    // ==> n = k*C
-    // f(P) == f(P + k*C) == f(n + P)
-    let mut y = start;
-    let mut p = 0;
-    while y != x {
-        y = f(y);
-        x = f(x);
-        p += 1;
-    }
-
-    let mut c = 1;
-    x = f(x);
-    while x != y {
-        x = f(x);
-        c += 1;
-    }
-
-    (p,c)
-}
-
 fn biodiversity_rating(map: &Map) -> i64 {
     map.iter()
         .enumerate()
@@ -85,27 +53,18 @@ fn biodiversity_rating(map: &Map) -> i64 {
         .sum()
 }
 
-#[derive(Clone)]
-struct MapWrapper {
-    map: Map,
-    biodiv: i64,
-}
-
-impl MapWrapper {
-    fn new(map: Map) -> Self {
-        let biodiv = biodiversity_rating(&map);
-        MapWrapper { map, biodiv }
+fn find_first_duplicate(map: &Map) -> Map {
+    let mut found = std::collections::HashSet::new();
+    let mut map = map.clone();
+    loop {
+        let bio = biodiversity_rating(&map);
+        if found.contains(&bio) {
+            return map;
+        } else {
+            found.insert(bio);
+            map = evolve(&map);
+        }
     }
-}
-
-impl PartialEq for MapWrapper {
-    fn eq(&self, other: &Self) -> bool {
-        self.biodiv.eq(&other.biodiv)
-    }
-}
-
-fn do_evolve(mapw: MapWrapper) -> MapWrapper {
-    MapWrapper::new(evolve(&mapw.map))
 }
 
 struct HyperMap {
@@ -224,12 +183,7 @@ fn count_bugs(hypermap: &HyperMap) -> i64 {
 fn main() {
     let map = parse_input(&slurp_stdin());
 
-    let (prefix, _cycle) = find_cycle(do_evolve, MapWrapper::new(map.clone()));
-
-    let mut m = map.clone();
-    for _ in 0..prefix {
-        m = evolve(&m);
-    }
+    let m = find_first_duplicate(&map);
     println!("{}", biodiversity_rating(&m));
 
     let mut hyper_map = make_hypermap(map, 101);
@@ -243,40 +197,6 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_cycle1() {
-        let f = |x: i64| {
-            if x < 3 {
-                x+1
-            } else {
-                3 + (x % 4)
-            }
-        };
-        // (0) 1 2  3 6 5 4  3 6 5 4
-        assert_eq!(find_cycle(f, 0), (3, 4));
-    }
-
-    #[test]
-    fn test_cycle2() {
-        let f = |_x: i64| 1;
-        // (0) 1 1 1 1 1
-        assert_eq!(find_cycle(f, 0), (1, 1));
-    }
-
-    #[test]
-    fn test_cycle3() {
-        let f = |_x: i64| 0;
-        // (0) 0 0 0
-        assert_eq!(find_cycle(f, 0), (0, 1));
-    }
-
-    #[test]
-    fn test_cycle4() {
-        let f = |x: i64| (x+1) % 7;
-        // (0) 1 2 3 4 5 6  0 1 2 3 4 5 6
-        assert_eq!(find_cycle(f, 0), (0, 7));
-    }
 
     #[test]
     fn test_biodiv() {
