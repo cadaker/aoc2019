@@ -76,6 +76,10 @@ impl<T> Grid<T> {
         }
         ret
     }
+
+    pub fn iter(&self) -> std::slice::Iter<T> {
+        self.elems.iter()
+    }
 }
 
 impl<T> std::fmt::Display for Grid<T>
@@ -116,6 +120,7 @@ impl<T> GridBuilder<T> {
     }
 
     pub fn build(self, default: T) -> Grid<T> {
+        assert!(self.width.is_some());
         Grid::new(self.elems, self.width.unwrap(), default)
     }
 }
