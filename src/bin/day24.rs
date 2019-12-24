@@ -22,18 +22,22 @@ fn parse_input(s: &str) -> Map {
     b.build(EMPTY)
 }
 
+fn grow_square(current: i64, neighbours: i64) -> i64 {
+    if current == BUG && neighbours != 1 {
+        EMPTY
+    } else if current == EMPTY && (neighbours == 1 || neighbours == 2) {
+        BUG
+    } else {
+        current
+    }
+}
+
 fn evolve(map: &Map) -> Map {
     let mut b = GridBuilder::new();
     for y in 0..map.height() {
         for x in 0..map.width() {
             let neighbours = map.get(x+1, y) + map.get(x-1, y) + map.get(x, y+1) + map.get(x, y-1);
-            if *map.get(x,y) == BUG && neighbours != 1 {
-                b.push(EMPTY);
-            } else if *map.get(x,y) == EMPTY && (neighbours == 1 || neighbours == 2) {
-                b.push(BUG);
-            } else {
-                b.push(*map.get(x,y));
-            }
+            b.push(grow_square(*map.get(x,y), neighbours));
         }
         b.eol();
     }
@@ -190,13 +194,7 @@ fn hyper_evolve(hyper_map: &HyperMap) -> HyperMap {
                     neighbours += get_outer(inner_neighbour, Dir::East);
                 }
 
-                if *map.get(x,y) == BUG && neighbours != 1 {
-                    b.push(EMPTY);
-                } else if *map.get(x,y) == EMPTY && (neighbours == 1 || neighbours == 2) {
-                    b.push(BUG);
-                } else {
-                    b.push(*map.get(x,y));
-                }
+                b.push(grow_square(*map.get(x,y), neighbours));
             }
             b.eol();
         }
@@ -209,12 +207,9 @@ fn hyper_evolve(hyper_map: &HyperMap) -> HyperMap {
 fn make_hypermap(map: Map, extra_levels: i64) -> HyperMap {
     let mut maps = HashMap::new();
     for level in -extra_levels..=extra_levels {
-        if level == 0 {
-            maps.insert(level, map.clone());
-        } else {
-            maps.insert(level, create_empty_map());
-        }
+        maps.insert(level, create_empty_map());
     }
+    maps.insert(0, map);
     HyperMap { maps }
 }
 
