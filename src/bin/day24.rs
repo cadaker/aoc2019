@@ -1,5 +1,6 @@
 use aoc2019::grid::{Grid, GridBuilder};
 use aoc2019::io::slurp_stdin;
+use std::collections::HashMap;
 
 type Map = Grid<i64>;
 
@@ -103,6 +104,128 @@ fn do_evolve(mapw: MapWrapper) -> MapWrapper {
     MapWrapper::new(evolve(&mapw.map))
 }
 
+struct HyperMap {
+    maps: HashMap<i64, Map>,
+}
+
+const W: i64 = 5;
+const H: i64 = 5;
+
+type Dir = aoc2019::dir::CartesianDir;
+
+fn get_inner(map: &Map, dir: Dir) -> i64 {
+    match dir {
+        Dir::West => *map.get(1, 2),
+        Dir::East => *map.get(3, 2),
+        Dir::North => *map.get(2, 1),
+        Dir::South => *map.get(2, 3),
+    }
+}
+
+fn get_outer(map: &Map, dir: Dir) -> i64 {
+    let (x, y) = match dir {
+        Dir::West => (0,-1),
+        Dir::East => (W-1,-1),
+        Dir::North => (-1,0),
+        Dir::South => (-1,H-1),
+    };
+    let mut sum = 0;
+    if x == -1 {
+        for x in 0..W {
+            sum += map.get(x, y);
+        }
+    } else if y == -1 {
+        for y in 0..H {
+            sum += map.get(x, y);
+        }
+    }
+    sum
+}
+
+fn create_empty_map() -> Map {
+    let mut elems = Vec::new();
+    elems.resize((W*H) as usize, EMPTY);
+    Map::new(elems, W as usize, EMPTY)
+}
+
+fn hyper_evolve(hyper_map: &HyperMap) -> HyperMap {
+    let mut new_maps = HashMap::new();
+    let empty_map = create_empty_map();
+
+    for (level, map) in &hyper_map.maps {
+        let inner_neighbour = hyper_map.maps.get(&(level+1)).unwrap_or(&empty_map);
+        let outer_neighbour = hyper_map.maps.get(&(level-1)).unwrap_or(&empty_map);
+
+        assert_eq!(map.width(), W);
+        assert_eq!(map.height(), H);
+        let mut b = GridBuilder::new();
+        for y in 0..H {
+            for x in 0..W {
+                if x == 2 && y == 2 {
+                    b.push(EMPTY);
+                    continue;
+                }
+
+                let mut neighbours = map.get(x+1, y) + map.get(x-1, y) + map.get(x, y+1) + map.get(x, y-1);
+                if x == 0 {
+                    neighbours += get_inner(outer_neighbour, Dir::West);
+                }
+                if x == W-1 {
+                    neighbours += get_inner(outer_neighbour, Dir::East);
+                }
+                if y == 0 {
+                    neighbours += get_inner(outer_neighbour, Dir::North);
+                }
+                if y == H-1 {
+                    neighbours += get_inner(outer_neighbour, Dir::South);
+                }
+
+                if x == 2 && y == 1 {
+                    neighbours += get_outer(inner_neighbour, Dir::North);
+                } else if x == 2 && y == 3 {
+                    neighbours += get_outer(inner_neighbour, Dir::South);
+                } else if y == 2 && x == 1 {
+                    neighbours += get_outer(inner_neighbour, Dir::West);
+                } else if y == 2 && x == 3 {
+                    neighbours += get_outer(inner_neighbour, Dir::East);
+                }
+
+                if *map.get(x,y) == BUG && neighbours != 1 {
+                    b.push(EMPTY);
+                } else if *map.get(x,y) == EMPTY && (neighbours == 1 || neighbours == 2) {
+                    b.push(BUG);
+                } else {
+                    b.push(*map.get(x,y));
+                }
+            }
+            b.eol();
+        }
+        new_maps.insert(*level, b.build(EMPTY));
+    }
+
+    HyperMap { maps: new_maps }
+}
+
+fn make_hypermap(map: Map, extra_levels: i64) -> HyperMap {
+    let mut maps = HashMap::new();
+    for level in -extra_levels..=extra_levels {
+        if level == 0 {
+            maps.insert(level, map.clone());
+        } else {
+            maps.insert(level, create_empty_map());
+        }
+    }
+    HyperMap { maps }
+}
+
+fn count_bugs(hypermap: &HyperMap) -> i64 {
+    hypermap.maps.values()
+        .map(|m| {
+            m.iter().sum::<i64>()
+        })
+        .sum::<i64>()
+}
+
 fn main() {
     let map = parse_input(&slurp_stdin());
 
@@ -113,6 +236,13 @@ fn main() {
         m = evolve(&m);
     }
     println!("{}", biodiversity_rating(&m));
+
+    let mut hyper_map = make_hypermap(map, 101);
+    for _ in 0..200 {
+        hyper_map = hyper_evolve(&hyper_map);
+    }
+
+    println!("{}", count_bugs(&hyper_map));
 }
 
 #[cfg(test)]
@@ -134,14 +264,14 @@ mod tests {
 
     #[test]
     fn test_cycle2() {
-        let f = |x: i64| 1;
+        let f = |_x: i64| 1;
         // (0) 1 1 1 1 1
         assert_eq!(find_cycle(f, 0), (1, 1));
     }
 
     #[test]
     fn test_cycle3() {
-        let f = |x: i64| 0;
+        let f = |_x: i64| 0;
         // (0) 0 0 0
         assert_eq!(find_cycle(f, 0), (0, 1));
     }
@@ -161,5 +291,21 @@ mod tests {
                            #....\n\
                            .#...";
         assert_eq!(biodiversity_rating(&parse_input(input)), 2129920);
+    }
+
+    #[test]
+    fn test_day24_example() {
+        let input = "....#\n\
+                           #..#.\n\
+                           #..##\n\
+                           ..#..\n\
+                           #....";
+        let map = parse_input(input);
+        let mut hypermap = make_hypermap(map, 5);
+        for _ in 0..10 {
+            hypermap = hyper_evolve(&hypermap);
+        }
+
+        assert_eq!(count_bugs(&hypermap), 99);
     }
 }
