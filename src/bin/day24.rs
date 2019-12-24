@@ -80,15 +80,6 @@ const H: i64 = 5;
 
 type Dir = aoc2019::dir::CartesianDir;
 
-fn get_inner(map: &Map, dir: Dir) -> i64 {
-    match dir {
-        Dir::West => *map.get(1, 2),
-        Dir::East => *map.get(3, 2),
-        Dir::North => *map.get(2, 1),
-        Dir::South => *map.get(2, 3),
-    }
-}
-
 fn get_outer(map: &Map, dir: Dir) -> i64 {
     let (x, y) = match dir {
         Dir::West => (0,-1),
@@ -122,16 +113,16 @@ fn hyper_neighbours(map: &Map, inner_neighbour: &Map, outer_neighbour: &Map, x: 
 
     let mut neighbours = basic_neighbours(map, x, y);
     if x == 0 {
-        neighbours += get_inner(outer_neighbour, Dir::West);
+        neighbours += outer_neighbour.get(1, 2);
     }
     if x == W-1 {
-        neighbours += get_inner(outer_neighbour, Dir::East);
+        neighbours += outer_neighbour.get(3, 2);
     }
     if y == 0 {
-        neighbours += get_inner(outer_neighbour, Dir::North);
+        neighbours += outer_neighbour.get(2, 1);
     }
     if y == H-1 {
-        neighbours += get_inner(outer_neighbour, Dir::South);
+        neighbours += outer_neighbour.get(2, 3);
     }
 
     if x == 2 && y == 1 {
