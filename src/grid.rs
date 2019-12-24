@@ -80,6 +80,24 @@ impl<T> Grid<T> {
     pub fn iter(&self) -> GridIterator<'_, T> {
         GridIterator { elems: &self.elems, pos: 0, stride: 1 }
     }
+
+    pub fn iter_row(&self, y: i64) -> GridIterator<'_, T> {
+        if 0 <= y && y < self.height() {
+            let ix0 = (y * self.width()) as usize;
+            let ix1 = ((y+1) * self.width()) as usize;
+            GridIterator { elems: &self.elems[ix0..ix1], pos: 0, stride: 1 }
+        } else {
+            GridIterator { elems: &self.elems, pos: self.elems.len(), stride: 1 }
+        }
+    }
+
+    pub fn iter_col(&self, x: i64) -> GridIterator<'_, T> {
+        if 0 <= x && x < self.width() {
+            GridIterator { elems: &self.elems, pos: x as usize, stride: self.width() as usize }
+        } else {
+            GridIterator { elems: &self.elems, pos: self.elems.len(), stride: 1 }
+        }
+    }
 }
 
 impl<T> std::fmt::Display for Grid<T>
@@ -152,8 +170,8 @@ mod tests {
     fn make_grid() -> Grid<i64> {
         let mut builder = GridBuilder::new();
         let mut i = 0;
-        for _ in 0..3 {
-            for _ in 0..4 {
+        for _y in 0..3 {
+            for _x in 0..4 {
                 builder.push(i);
                 i += 1;
             }
@@ -190,5 +208,19 @@ mod tests {
         let grid = make_grid();
         let elems: Vec<_> = grid.iter().cloned().collect();
         assert_eq!(elems, grid.elems);
+    }
+
+    #[test]
+    fn test_col_iter() {
+        let grid = make_grid();
+        let elems: Vec<_> = grid.iter_col(2).cloned().collect();
+        assert_eq!(elems, vec![2, 6, 10]);
+    }
+
+    #[test]
+    fn test_row_iter() {
+        let grid = make_grid();
+        let elems: Vec<_> = grid.iter_row(1).cloned().collect();
+        assert_eq!(elems, vec![4, 5, 6, 7]);
     }
 }
