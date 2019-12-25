@@ -1,0 +1,45 @@
+           F
+           |
+           E - 1 - D
+           |   |
+           G   |
+               |
+               |
+               |
+
+    H - A*---- 2*
+        |      |
+J*- I*- B*- C  |
+               |
+               |
+               |
+               |
+           9*  |
+           |   |
+           8 - 3*- 4
+                   |
+                   5 - 6*
+                       |
+                       7
+                       |
+
+
+1: hull breach, start
+2: chocolate fountain (astrolabe)
+3: stables (cake)
+4: hallway (~infinite loop~)
+5: observatory (~giant electromagnet~)
+6: gift wrapping center (food ration)
+7: security checkpoint
+8: arcade
+9: navigation (coin)
+A: kitchen (hologram)
+B: passages (space law space brochure)
+C: warp drive (~photons~)
+D: sick bay (~molten lava~)
+E: engineering
+F: crew quarters (~escape pod~)
+G: storage
+H: science lab
+I: holodeck (wreath)
+J: corridor (hypercube)
