@@ -78,28 +78,6 @@ struct HyperMap {
 const W: i64 = 5;
 const H: i64 = 5;
 
-type Dir = aoc2019::dir::CartesianDir;
-
-fn get_outer(map: &Map, dir: Dir) -> i64 {
-    let (x, y) = match dir {
-        Dir::West => (0,-1),
-        Dir::East => (W-1,-1),
-        Dir::North => (-1,0),
-        Dir::South => (-1,H-1),
-    };
-    let mut sum = 0;
-    if x == -1 {
-        for x in 0..W {
-            sum += map.get(x, y);
-        }
-    } else if y == -1 {
-        for y in 0..H {
-            sum += map.get(x, y);
-        }
-    }
-    sum
-}
-
 fn create_empty_map() -> Map {
     let mut elems = Vec::new();
     elems.resize((W*H) as usize, EMPTY);
@@ -126,13 +104,13 @@ fn hyper_neighbours(map: &Map, inner_neighbour: &Map, outer_neighbour: &Map, x: 
     }
 
     if x == 2 && y == 1 {
-        neighbours += get_outer(inner_neighbour, Dir::North);
+        neighbours += inner_neighbour.iter_row(0).sum::<i64>();
     } else if x == 2 && y == 3 {
-        neighbours += get_outer(inner_neighbour, Dir::South);
+        neighbours += inner_neighbour.iter_row(inner_neighbour.height() - 1).sum::<i64>();
     } else if y == 2 && x == 1 {
-        neighbours += get_outer(inner_neighbour, Dir::West);
+        neighbours += inner_neighbour.iter_col(0).sum::<i64>();
     } else if y == 2 && x == 3 {
-        neighbours += get_outer(inner_neighbour, Dir::East);
+        neighbours += inner_neighbour.iter_col(inner_neighbour.width() - 1).sum::<i64>();
     }
     neighbours
 }
