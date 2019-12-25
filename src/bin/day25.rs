@@ -141,6 +141,7 @@ fn experiment_script(items: &[&str], experiment: usize, direction: &str) -> Stri
     ret
 }
 
+#[allow(dead_code)]
 fn run_experiment(program: &Vec<intcode::Mem>) {
     for experiment in 0..(1 << ITEMS.len()) {
         let script2 = experiment_script(&ITEMS, experiment, "south");
@@ -160,6 +161,31 @@ fn play(program: &Vec<intcode::Mem>, script: &str) {
     intcode::run_program_splitio(program.clone(), &mut input, &mut output).unwrap();
 }
 
+const SCRIPT: &str = "\
+south\n\
+west\n\
+take hologram\n\
+south\n\
+west\n\
+west\n\
+take hypercube\n\
+east\n\
+east\n\
+north\n\
+east\n\
+south\n\
+take cake\n\
+west\n\
+north\n\
+take coin\n\
+south\n\
+east\n\
+east\n\
+south\n\
+east\n\
+south\n\
+south\n";
+
 fn main() {
     let mut program_input = String::new();
     File::open("data/day25.in")
@@ -168,6 +194,6 @@ fn main() {
         .unwrap();
     let program = parse_intcode_program(&program_input);
 
-    //play(&program, "");
-    run_experiment(&program);
+    //run_experiment(&program);
+    play(&program, SCRIPT);
 }
