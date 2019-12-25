@@ -14,6 +14,14 @@ fn get_line() -> io::Result<String> {
     Ok(buf)
 }
 
+fn to_queue(s: &str) -> VecDeque<char> {
+    let mut ret = VecDeque::new();
+    for c in s.chars() {
+        ret.push_back(c);
+    }
+    ret
+}
+
 struct ConsoleOutput {
 }
 
@@ -24,20 +32,47 @@ impl intcode::Output for ConsoleOutput {
 }
 
 struct ConsoleInput {
-    buf: std::collections::VecDeque<char>,
+    buf: VecDeque<char>,
 }
 
 impl intcode::Input for ConsoleInput {
     fn next_input(&mut self) -> Result<i64, String> {
         if self.buf.is_empty() {
-            let line = get_line().unwrap();
-            for c in line.chars() {
-                self.buf.push_back(c);
-            }
+            self.buf = to_queue(&get_line().unwrap());
         }
-        Ok(self.buf.pop_front().unwrap() as u8 as i64)
+        let c = self.buf.pop_front().unwrap();
+        print!("{}", c);
+        Ok(c as u8 as i64)
     }
 }
+
+const SCRIPT: &str = "\
+south\n\
+take astrolabe\n\
+west\n\
+take hologram\n\
+south\n\
+take space law space brochure\n\
+west\n\
+take wreath\n\
+west\n\
+take hypercube\n\
+east\n\
+east\n\
+north\n\
+east\n\
+south\n\
+take cake\n\
+west\n\
+north\n\
+take coin\n\
+south\n\
+east\n\
+east\n\
+south\n\
+east\n\
+take food ration\n\
+south\n";
 
 fn main() {
     let mut program_input = String::new();
@@ -47,7 +82,7 @@ fn main() {
         .unwrap();
     let program = parse_intcode_program(&program_input);
 
-    let mut input = ConsoleInput { buf: VecDeque::new() };
+    let mut input = ConsoleInput { buf: to_queue(SCRIPT) };
     let mut output = ConsoleOutput {};
     intcode::run_program_splitio(program, &mut input, &mut output).unwrap();
 }
